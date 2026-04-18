@@ -76,43 +76,60 @@ function bindEvents() {
     elements.backBtn.addEventListener('click', goBack);
 }
 
-// 底部导航 - 移动端点击修复
+// 底部导航 - 移动端点击修复版
 function setupBottomNav() {
     const navContainer = elements.bottomNav;
     if (!navContainer) return;
     
     const navItems = navContainer.querySelectorAll('.nav-item');
     
-    // 使用 click 事件（ Capacitor WebView 和移动端浏览器都能正常处理）
-    navContainer.addEventListener('click', function(e) {
-        const navItem = e.target.closest('.nav-item');
-        if (!navItem) return;
+    // 使用 touchend + click 双重保障，但避免重复触发
+    navItems.forEach(item => {
+        let touchHandled = false;
         
+        // Touch 事件（移动端优先）
+        item.addEventListener('touchend', (e) => {
+            touchHandled = true;
+            e.preventDefault(); // 阻止默认行为
+            e.stopPropagation(); // 阻止冒泡
+            handleNavClick(item);
+            setTimeout(() => { touchHandled = false; }, 100);
+        }, { passive: false });
+        
+        // Click 事件（桌面端/备用）
+        item.addEventListener('click', (e) => {
+            if (touchHandled) return; // 如果 touch 已处理，跳过
+            e.preventDefault();
+            e.stopPropagation();
+            handleNavClick(item);
+        });
+    });
+    
+    function handleNavClick(navItem) {
         const category = navItem.dataset.category;
         
+        // 更新激活状态
         navItems.forEach(n => n.classList.remove('active'));
         navItem.classList.add('active');
         
-        // 强制隐藏欢迎页
-        if (elements.welcomeSection) {
-            elements.welcomeSection.style.display = 'none';
-            elements.welcomeSection.style.visibility = 'hidden';
-        }
+        // 强制隐藏欢迎页，显示工具区
+        elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
         
         if (category === 'home') {
             showWelcome();
         } else {
-            // 强制显示工具列表
-            if (elements.toolsSection) {
-                elements.toolsSection.style.display = 'block';
-                elements.toolsSection.style.visibility = 'visible';
-            }
-            showCategory(category);
+            // 强制显示工具区（双重保障）
+            elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important;';
+            elements.toolDetail.style.cssText = 'display: none !important; visibility: hidden !important;';
+            
+            // 延迟执行确保 DOM 更新
+            requestAnimationFrame(() => {
+                showCategory(category);
+            });
         }
         
-        // 滚动到顶部
         window.scrollTo(0, 0);
-    }, true); // 使用捕获阶段
+    }
 }
 
 // 显示欢迎页
@@ -158,17 +175,11 @@ function showCategory(categoryId) {
     }
 
     // 隐藏欢迎页和工具详情，强制显示工具列表
-    elements.welcomeSection.style.display = 'none';
-    elements.welcomeSection.style.visibility = 'hidden';
-    elements.toolDetail.style.display = 'none';
-    elements.toolDetail.style.visibility = 'hidden';
+    elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+    elements.toolDetail.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
     
     // 强制显示工具列表区，清除所有可能的隐藏样式
-    elements.toolsSection.style.display = 'block';
-    elements.toolsSection.style.visibility = 'visible';
-    elements.toolsSection.style.opacity = '1';
-    elements.toolsSection.style.height = 'auto';
-    elements.toolsSection.style.minHeight = '500px';
+    elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important; position: relative !important;';
 
     elements.sectionTitle.textContent = category.name;
     elements.toolCount.textContent = `${tools.length} 个工具`;
