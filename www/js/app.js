@@ -33,13 +33,6 @@ const elements = {
     toast: document.getElementById('toast')
 };
 
-// 初始化
-function init() {
-    renderNav();
-    bindEvents();
-    setupBottomNav();
-}
-
 // 渲染导航菜单
 function renderNav() {
     const navHTML = TOOLS_DATA.categories.map(cat => `
@@ -148,8 +141,21 @@ function showCategory(categoryId) {
     AppState.currentCategory = categoryId;
     AppState.currentTool = null;
 
+    // 防御性检查：确保元素存在
+    if (!elements.welcomeSection || !elements.toolsSection) {
+        console.error('Missing elements:', { welcomeSection: elements.welcomeSection, toolsSection: elements.toolsSection });
+        return;
+    }
+
     const category = ToolUtils.getCategoryById(categoryId);
     const tools = ToolUtils.getToolsByCategory(categoryId);
+
+    // 如果分类不存在，fallback 到首页
+    if (!category) {
+        console.warn('Category not found:', categoryId);
+        showWelcome();
+        return;
+    }
 
     // 隐藏欢迎页和工具详情，强制显示工具列表
     elements.welcomeSection.style.display = 'none';
