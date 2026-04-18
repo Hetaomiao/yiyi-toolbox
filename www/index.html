@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>设计师工具箱 - 125个实用工具</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%236366f1' width='192' height='192' rx='32'/><text x='96' y='130' font-size='100' text-anchor='middle' fill='white'>🎨</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tools.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🎨</span>
+                <span class="logo-text">设计师工具箱</span>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索工具..." autocomplete="off">
+                <span class="search-icon">🔍</span>
+            </div>
+            <button class="menu-btn" id="menuBtn">☰</button>
+        </div>
+    </header>
+
+    <!-- 侧边导航 -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>工具分类</span>
+            <button class="close-btn" id="closeBtn">×</button>
+        </div>
+        <div class="nav-list" id="navList">
+            <!-- 由JS动态生成 -->
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 欢迎页面 -->
+        <section class="welcome-section" id="welcomeSection">
+            <div class="welcome-content">
+                <h1>👋 欢迎使用设计师工具箱</h1>
+                <p class="welcome-subtitle">125+ 纯前端工具，PC手机都能用，完全免费</p>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-num">125</span>
+                        <span class="stat-label">工具数量</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-num">14</span>
+                        <span class="stat-label">功能分类</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-num">0</span>
+                        <span class="stat-label">后端依赖</span>
+                    </div>
+                </div>
+                <p class="welcome-tip">👇 从左侧分类选择工具，或直接搜索</p>
+            </div>
+        </section>
+
+        <!-- 工具展示区 -->
+        <section class="tools-section" id="toolsSection" style="display:none;">
+            <div class="section-header">
+                <h2 id="sectionTitle">工具列表</h2>
+                <span class="tool-count" id="toolCount">0 个工具</span>
+            </div>
+            <div class="tools-grid" id="toolsGrid">
+                <!-- 由JS动态生成 -->
+            </div>
+        </section>
+
+        <!-- 工具详情/操作区 -->
+        <section class="tool-detail" id="toolDetail" style="display:none;">
+            <div class="tool-header">
+                <button class="back-btn" id="backBtn">← 返回</button>
+                <h2 id="toolTitle">工具名称</h2>
+            </div>
+            <div class="tool-content" id="toolContent">
+                <!-- 各工具的具体操作界面 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 通用图片处理区（供各工具调用） -->
+    <div class="image-editor" id="imageEditor" style="display:none;">
+        <div class="editor-toolbar">
+            <button class="tool-btn" data-action="upload">📤 上传</button>
+            <button class="tool-btn" data-action="download">📥 下载</button>
+            <button class="tool-btn" data-action="reset">🔄 重置</button>
+        </div>
+        <div class="editor-canvas-container">
+            <canvas id="editorCanvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 底部标签栏（移动端） -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-item active" data-category="home">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">首页</span>
+        </button>
+        <button class="nav-item" data-category="image">
+            <span class="nav-icon">🖼️</span>
+            <span class="nav-label">图片</span>
+        </button>
+        <button class="nav-item" data-category="color">
+            <span class="nav-icon">🎨</span>
+            <span class="nav-label">配色</span>
+        </button>
+        <button class="nav-item" data-category="code">
+            <span class="nav-icon">💻</span>
+            <span class="nav-label">代码</span>
+        </button>
+        <button class="nav-item" data-category="daily">
+            <span class="nav-icon">📱</span>
+            <span class="nav-label">日常</span>
+        </button>
+    </nav>
+
+    <script src="js/tools-data.js?v=20240418"></script>
+    <script src="js/app.js?v=20240418"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js?v=20240418').then(() => {
+          console.log('PWA Service Worker registered');
+        });
+      }
+    </script>
+</body>
+</html>
