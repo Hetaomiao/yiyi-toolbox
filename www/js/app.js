@@ -83,83 +83,43 @@ function bindEvents() {
     elements.backBtn.addEventListener('click', goBack);
 }
 
-// 底部导航 - 增强移动端点击
+// 底部导航 - 移动端点击修复
 function setupBottomNav() {
-    const navItems = elements.bottomNav.querySelectorAll('.nav-item');
+    const navContainer = elements.bottomNav;
+    if (!navContainer) return;
     
-    navItems.forEach(item => {
-        // 使用 touchend 事件处理移动端点击（更可靠）
-        item.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // 强制刷新整个导航状态
-            const category = this.dataset.category;
-            
-            navItems.forEach(n => n.classList.remove('active'));
-            this.classList.add('active');
-            
-            // 强制隐藏欢迎页
-            if (elements.welcomeSection) {
-                elements.welcomeSection.style.display = 'none';
-                elements.welcomeSection.style.visibility = 'hidden';
-            }
-            
-            if (category === 'home') {
-                showWelcome();
-            } else {
-                // 强制显示工具列表
-                if (elements.toolsSection) {
-                    elements.toolsSection.style.display = 'block';
-                    elements.toolsSection.style.visibility = 'visible';
-                }
-                showCategory(category);
-            }
-            
-            // 滚动到顶部
-            window.scrollTo(0, 0);
-        }, { passive: false });
+    const navItems = navContainer.querySelectorAll('.nav-item');
+    
+    // 使用 click 事件（ Capacitor WebView 和移动端浏览器都能正常处理）
+    navContainer.addEventListener('click', function(e) {
+        const navItem = e.target.closest('.nav-item');
+        if (!navItem) return;
         
-        // 桌面端点击支持
-        item.addEventListener('click', function(e) {
-            // 如果是桌面端且touchend没触发
-            if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-            
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const category = this.dataset.category;
-            
-            navItems.forEach(n => n.classList.remove('active'));
-            this.classList.add('active');
-            
-            if (elements.welcomeSection) {
-                elements.welcomeSection.style.display = 'none';
-                elements.welcomeSection.style.visibility = 'hidden';
-            }
-            
-            if (category === 'home') {
-                showWelcome();
-            } else {
-                if (elements.toolsSection) {
-                    elements.toolsSection.style.display = 'block';
-                    elements.toolsSection.style.visibility = 'visible';
-                }
-                showCategory(category);
-            }
-            
-            window.scrollTo(0, 0);
-        });
+        const category = navItem.dataset.category;
         
-        // 触摸反馈
-        item.addEventListener('touchstart', function() {
-            this.style.opacity = '0.7';
-        }, { passive: true });
+        navItems.forEach(n => n.classList.remove('active'));
+        navItem.classList.add('active');
         
-        item.addEventListener('touchend', function() {
-            this.style.opacity = '1';
-        }, { passive: true });
-    });
+        // 强制隐藏欢迎页
+        if (elements.welcomeSection) {
+            elements.welcomeSection.style.display = 'none';
+            elements.welcomeSection.style.visibility = 'hidden';
+        }
+        
+        if (category === 'home') {
+            showWelcome();
+        } else {
+            // 强制显示工具列表
+            if (elements.toolsSection) {
+                elements.toolsSection.style.display = 'block';
+                elements.toolsSection.style.visibility = 'visible';
+            }
+            showCategory(category);
+        }
+        
+        // 滚动到顶部
+        window.scrollTo(0, 0);
+    }, true); // 使用捕获阶段
 }
 
 // 显示欢迎页
