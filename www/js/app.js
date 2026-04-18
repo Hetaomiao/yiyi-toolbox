@@ -76,10 +76,14 @@ function bindEvents() {
     elements.backBtn.addEventListener('click', goBack);
 }
 
-// 底部导航 - 移动端点击修复版（使用事件委托）
+// 底部导航 - 移动端点击修复版
 function setupBottomNav() {
     const navContainer = elements.bottomNav;
-    if (!navContainer) return;
+    console.log('[DEBUG] setupBottomNav called, navContainer:', navContainer);
+    if (!navContainer) {
+        console.error('[ERROR] bottomNav element not found!');
+        return;
+    }
     
     const navItems = navContainer.querySelectorAll('.nav-item');
     
@@ -122,6 +126,7 @@ function setupBottomNav() {
     // 移动端 touch 事件处理（防止 300ms 延迟）
     navContainer.addEventListener('touchend', (e) => {
         const navItem = e.target.closest('.nav-item');
+        console.log('[DEBUG] touchend event, navItem:', navItem, 'target:', e.target);
         if (navItem) {
             e.preventDefault();
             e.stopPropagation();
@@ -144,10 +149,16 @@ function showWelcome() {
     elements.toolDetail.style.visibility = 'hidden';
 }
 
-// 初始化
+// 初始化函数
 function init() {
-    renderNav();
-    bindEvents();
+    console.log('[DEBUG] init() called');
+    console.log('[DEBUG] document.readyState:', document.readyState);
+    console.log('[DEBUG] Capacitor:', typeof Capacitor !== 'undefined' ? 'available' : 'NOT available');
+    console.log('[DEBUG] isNativePlatform:', typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform());
+    
+    // 获取 DOM 元素
+    const navContainer = document.getElementById('bottomNav');
+    console.log('[DEBUG] bottomNav element:', navContainer);
     setupBottomNav();
 }
 
@@ -4319,6 +4330,7 @@ function copyPalette() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('deviceready', init); // Capacitor 专用
 
 
 // ========================================
