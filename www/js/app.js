@@ -252,8 +252,13 @@ function showSearchResults(query) {
 
 // 显示工具
 function showTool(toolId) {
+    console.log('[DEBUG] showTool called, toolId:', toolId);
     const tool = ToolUtils.getToolById(toolId);
-    if (!tool) return;
+    console.log('[DEBUG] tool found:', tool);
+    if (!tool) {
+        console.error('[ERROR] tool not found for ID:', toolId);
+        return;
+    }
 
     AppState.currentTool = tool;
 
@@ -265,6 +270,7 @@ function showTool(toolId) {
     elements.toolDetail.style.visibility = 'visible';
 
     elements.toolTitle.textContent = tool.name;
+    console.log('[DEBUG] title set to:', tool.name);
 
     // 加载工具内容
     loadToolContent(toolId);
@@ -272,7 +278,13 @@ function showTool(toolId) {
 
 // 加载工具内容
 function loadToolContent(toolId) {
+    console.log('[DEBUG] loadToolContent called, toolId:', toolId);
     const toolContent = document.getElementById('toolContent');
+    console.log('[DEBUG] toolContent element:', toolContent);
+    if (!toolContent) {
+        console.error('[ERROR] toolContent element not found!');
+        return;
+    }
     
     // 基础模板
     let html = `<div class="tool-view" id="toolView">`;
@@ -515,8 +527,11 @@ function loadToolContent(toolId) {
     
     html += `</div>`;
     toolContent.innerHTML = html;
+    console.log('[DEBUG] HTML set to toolContent, length:', html.length);
+    console.log('[DEBUG] toolContent innerHTML preview:', toolContent.innerHTML.substring(0, 100));
 
     bindToolEvents(toolId);
+    console.log('[DEBUG] bindToolEvents called');
 }
 
 // ========================================
