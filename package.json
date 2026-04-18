@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "echo 'Web app already built - www folder is the built version'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
