@@ -173,6 +173,18 @@ function showCategory(categoryId) {
         return;
     }
 
+    // 如果是"我的"分类，显示个人中心
+    if (categoryId === 'me') {
+        elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        elements.toolDetail.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
+        elements.sectionTitle.textContent = '👤 我的';
+        elements.toolCount.textContent = '';
+        elements.toolsGrid.innerHTML = getProfileView();
+        bindProfileEvents();
+        return;
+    }
+
     const category = ToolUtils.getCategoryById(categoryId);
     const tools = ToolUtils.getToolsByCategory(categoryId);
 
@@ -6655,4 +6667,171 @@ async function downloadAllToFolder(files) {
     }
     
     showToast('下载完成！');
+}
+
+// ========================================
+// 我的页面（设置/个人中心）
+// ========================================
+
+function getProfileView() {
+    return `
+        <div style="padding:20px;">
+            <div style="text-align:center;margin-bottom:30px;">
+                <div style="font-size:80px;margin-bottom:15px;">🎨</div>
+                <h2 style="margin:0 0 5px 0;">设计师工具箱</h2>
+                <p style="color:var(--text-muted);margin:0;">版本 ${TOOLS_DATA.version}</p>
+            </div>
+
+            <div style="background:var(--bg-card);border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h3 style="margin:0 0 15px 0;font-size:16px;color:var(--text-secondary);">📱 应用信息</h3>
+
+                <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+                    <span>当前版本</span>
+                    <span style="color:var(--primary);font-weight:500;">v${TOOLS_DATA.version}</span>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+                    <span>构建时间</span>
+                    <span style="color:var(--text-muted);">${new Date().toLocaleDateString('zh-CN')}</span>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;padding:12px 0;">
+                    <span>工具总数</span>
+                    <span style="color:var(--primary);font-weight:500;">${TOOLS_DATA.tools.length}+</span>
+                </div>
+            </div>
+
+            <div style="background:var(--bg-card);border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h3 style="margin:0 0 15px 0;font-size:16px;color:var(--text-secondary);">🔄 检查更新</h3>
+
+                <button class="btn btn-primary" id="checkUpdateBtn" style="width:100%;margin-bottom:10px;">
+                    🔍 检查更新
+                </button>
+
+                <div id="updateStatus" style="text-align:center;padding:15px;color:var(--text-muted);display:none;">
+                    <div id="updateStatusText">检查中...</div>
+                    <div id="updateProgress" style="margin-top:10px;display:none;">
+                        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                            <div id="updateProgressBar" style="height:100%;background:var(--primary);width:0%;transition:width 0.3s;"></div>
+                        </div>
+                        <div style="font-size:12px;margin-top:5px;" id="updateProgressText">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:var(--bg-card);border-radius:12px;padding:20px;">
+                <h3 style="margin:0 0 15px 0;font-size:16px;color:var(--text-secondary);">ℹ️ 关于</h3>
+
+                <div style="color:var(--text-muted);font-size:13px;line-height:1.6;">
+                    <p>设计师工具箱是一款纯前端工具合集，专为设计师和创意工作者打造。</p>
+                    <p>无需安装，即开即用，完全免费。</p>
+                </div>
+
+                <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border);text-align:center;">
+                    <span style="color:var(--text-muted);font-size:12px;">Made with ❤️ by 一一科技</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function bindProfileEvents() {
+    const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+    if (!checkUpdateBtn) return;
+
+    checkUpdateBtn.addEventListener('click', async () => {
+        const updateStatus = document.getElementById('updateStatus');
+        const updateStatusText = document.getElementById('updateStatusText');
+        const updateProgress = document.getElementById('updateProgress');
+        const updateProgressBar = document.getElementById('updateProgressBar');
+        const updateProgressText = document.getElementById('updateProgressText');
+
+        updateStatus.style.display = 'block';
+        updateStatusText.textContent = '正在检查更新...';
+        updateProgress.style.display = 'none';
+
+        try {
+            // 调用 GitHub API 获取最新构建
+            const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs', {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (!response.ok) throw new Error('网络请求失败');
+
+            const data = await response.json();
+            const latestRun = data.workflow_runs.find(r => r.conclusion === 'success');
+
+            if (!latestRun) {
+                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
+                return;
+            }
+
+            // 获取构建时间
+            const buildDate = new Date(latestRun.created_at).toLocaleDateString('zh-CN');
+            updateStatusText.innerHTML = `
+                <span style="color:#10b981;">✅ 发现新版本！</span><br>
+                <span style="font-size:12px;">构建时间: ${buildDate}</span>
+            `;
+
+            // 获取下载链接
+            const artifactsResponse = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs/${latestRun.id}/artifacts`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (!artifactsResponse.ok) throw new Error('获取下载链接失败');
+
+            const artifactsData = await artifactsResponse.json();
+            const apkArtifact = artifactsData.artifacts.find(a => a.name === 'apk');
+
+            if (!apkArtifact) {
+                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
+                return;
+            }
+
+            updateStatusText.innerHTML += '<br><span style="color:var(--primary);">正在下载...</span>';
+            updateProgress.style.display = 'block';
+
+            // 下载 APK
+            updateProgressBar.style.width = '30%';
+            updateProgressText.textContent = '30%';
+
+            // 使用 Capacitor Browser 打开下载链接
+            // 由于是跨域，我们需要通过代理或者直接打开
+            // 在 Capacitor App 中可以直接打开 GitHub 的下载链接
+            const downloadUrl = apkArtifact.archive_download_url;
+
+            updateProgressBar.style.width = '100%';
+            updateProgressText.textContent = '准备下载...';
+
+            // 提示用户下载
+            updateStatusText.innerHTML = `
+                <span style="color:#10b981;">✅ 准备开始下载...</span><br>
+                <span style="font-size:12px;">下载完成后请安装 APK</span><br>
+                <a href="${downloadUrl}" id="downloadLink" style="display:none;"></a>
+            `;
+
+            // 在 App 中打开下载链接
+            if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+                // Capacitor App 中使用 Browser 插件
+                const { Browser } = Capacitor.Plugins;
+                if (Browser) {
+                    await Browser.open({ url: downloadUrl });
+                }
+            } else {
+                // 浏览器中，触发下载
+                const link = document.getElementById('downloadLink');
+                link.href = downloadUrl;
+                link.download = 'yiyi-toolbox.apk';
+                link.click();
+            }
+
+        } catch (error) {
+            console.error('检查更新失败:', error);
+            updateStatusText.innerHTML = `<span style="color:#ef4444;">❌ 检查更新失败</span><br><span style="font-size:12px;">${error.message}</span>`;
+        }
+    });
 }

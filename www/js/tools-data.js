@@ -3,6 +3,9 @@
 // ========================================
 
 const TOOLS_DATA = {
+    // 版本号
+    version: '1.0.1',
+
     // 分类定义
     categories: [
         { id: 'image', name: '🖼️ 图片处理', icon: '🖼️', count: 26 },
@@ -17,7 +20,8 @@ const TOOLS_DATA = {
         { id: 'dev', name: '🛠️ 开发工具', icon: '🛠️', count: 10 },
         { id: 'chart', name: '📊 图表生成', icon: '📊', count: 5 },
         { id: 'game', name: '🎮 趣味工具', icon: '🎮', count: 5 },
-        { id: 'other', name: '📱 其他工具', icon: '📱', count: 10 }
+        { id: 'other', name: '📱 其他工具', icon: '📱', count: 10 },
+        { id: 'me', name: '👤 我的', icon: '👤', count: 0 }
     ],
 
     // 工具列表
