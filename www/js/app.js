@@ -76,34 +76,12 @@ function bindEvents() {
     elements.backBtn.addEventListener('click', goBack);
 }
 
-// 底部导航 - 移动端点击修复版
+// 底部导航 - 移动端点击修复版（使用事件委托）
 function setupBottomNav() {
     const navContainer = elements.bottomNav;
     if (!navContainer) return;
     
     const navItems = navContainer.querySelectorAll('.nav-item');
-    
-    // 使用 touchend + click 双重保障，但避免重复触发
-    navItems.forEach(item => {
-        let touchHandled = false;
-        
-        // Touch 事件（移动端优先）
-        item.addEventListener('touchend', (e) => {
-            touchHandled = true;
-            e.preventDefault(); // 阻止默认行为
-            e.stopPropagation(); // 阻止冒泡
-            handleNavClick(item);
-            setTimeout(() => { touchHandled = false; }, 100);
-        }, { passive: false });
-        
-        // Click 事件（桌面端/备用）
-        item.addEventListener('click', (e) => {
-            if (touchHandled) return; // 如果 touch 已处理，跳过
-            e.preventDefault();
-            e.stopPropagation();
-            handleNavClick(item);
-        });
-    });
     
     function handleNavClick(navItem) {
         const category = navItem.dataset.category;
@@ -130,6 +108,26 @@ function setupBottomNav() {
         
         window.scrollTo(0, 0);
     }
+    
+    // 使用事件委托，在容器层面处理点击
+    navContainer.addEventListener('click', (e) => {
+        const navItem = e.target.closest('.nav-item');
+        if (navItem) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleNavClick(navItem);
+        }
+    });
+    
+    // 移动端 touch 事件处理（防止 300ms 延迟）
+    navContainer.addEventListener('touchend', (e) => {
+        const navItem = e.target.closest('.nav-item');
+        if (navItem) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleNavClick(navItem);
+        }
+    }, { passive: false });
 }
 
 // 显示欢迎页
