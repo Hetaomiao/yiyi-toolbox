@@ -252,11 +252,20 @@ function showSearchResults(query) {
 
 // 显示工具
 function showTool(toolId) {
-    console.log('[DEBUG] showTool called, toolId:', toolId);
+    // 临时显示调试信息
+    const debugDiv = document.getElementById('debugInfo');
+    if (debugDiv) debugDiv.remove();
+    const body = document.body;
+    const debugEl = document.createElement('div');
+    debugEl.id = 'debugInfo';
+    debugEl.style = 'position:fixed;top:60px;left:0;right:0;background:yellow;color:#000;z-index:9999;padding:10px;font-size:12px;max-height:200px;overflow:auto;';
+    debugEl.innerHTML = `<b>调试信息:</b><br>toolId: ${toolId}<br>`;
+    body.appendChild(debugEl);
+
     const tool = ToolUtils.getToolById(toolId);
-    console.log('[DEBUG] tool found:', tool);
+    debugEl.innerHTML += `tool found: ${!!tool}<br>`;
     if (!tool) {
-        console.error('[ERROR] tool not found for ID:', toolId);
+        debugEl.innerHTML += `<span style="color:red">❌ 工具未找到: ${toolId}</span>`;
         return;
     }
 
@@ -270,29 +279,29 @@ function showTool(toolId) {
     elements.toolDetail.style.visibility = 'visible';
 
     elements.toolTitle.textContent = tool.name;
-    console.log('[DEBUG] title set to:', tool.name);
+    debugEl.innerHTML += `title set: ${tool.name}<br>`;
 
-    // 加载工具内容
     loadToolContent(toolId);
+    debugEl.innerHTML += `loadToolContent 完成<br>`;
 }
 
 // 加载工具内容
 function loadToolContent(toolId) {
-    console.log('[DEBUG] loadToolContent called, toolId:', toolId);
+    const debugDiv = document.getElementById('debugInfo');
+    debugDiv.innerHTML += `<br>--- loadToolContent ---<br>`;
+
     const toolContent = document.getElementById('toolContent');
-    console.log('[DEBUG] toolContent element:', toolContent);
-    if (!toolContent) {
-        console.error('[ERROR] toolContent element not found!');
-        return;
-    }
-    
+    debugDiv.innerHTML += `toolContent存在: ${!!toolContent}<br>`;
+    if (!toolContent) return;
+
     // 基础模板
     let html = `<div class="tool-view" id="toolView">`;
-    
+
     // 根据工具ID加载不同界面
     switch(toolId) {
         case 'img-compress':
             html += getImageCompressView();
+            debugDiv.innerHTML += `加载: img-compress<br>`;
             break;
         case 'img-format':
             html += getImageFormatView();
@@ -525,13 +534,20 @@ function loadToolContent(toolId) {
             html += getDefaultToolView(toolId);
     }
     
-    html += `</div>`;
-    toolContent.innerHTML = html;
-    console.log('[DEBUG] HTML set to toolContent, length:', html.length);
-    console.log('[DEBUG] toolContent innerHTML preview:', toolContent.innerHTML.substring(0, 100));
+    try {
+        toolContent.innerHTML = html;
+        debugDiv.innerHTML += `HTML已设置,长度:${html.length}<br>`;
+        debugDiv.innerHTML += `innerHTML预览:${toolContent.innerHTML.substring(0, 50)}...<br>`;
+    } catch(e) {
+        debugDiv.innerHTML += `<span style="color:red">❌ HTML设置失败: ${e.message}</span><br>`;
+    }
 
-    bindToolEvents(toolId);
-    console.log('[DEBUG] bindToolEvents called');
+    try {
+        bindToolEvents(toolId);
+        debugDiv.innerHTML += `bindToolEvents 完成<br>`;
+    } catch(e) {
+        debugDiv.innerHTML += `<span style="color:red">❌ bindToolEvents失败: ${e.message}</span><br>`;
+    }
 }
 
 // ========================================
