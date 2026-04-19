@@ -4424,52 +4424,66 @@ function roundedRect(ctx, x, y, w, h, r) {
 // 高级下载管理器（大哥方案）
 // ============================
 const FOLDER_NAME = 'DesignToolBox';
+let _albumPath = null;
 
 // 提取纯 base64 数据
 function getBase64Data(dataUrl) {
     return dataUrl.replace(/^data:image\/\w+;base64,/, '');
 }
 
+// 确保相册目录存在
+async function ensureAlbum() {
+    if (_albumPath) return _albumPath;
+    const media = window.Capacitor?.Plugins?.Media;
+    if (!media) return null;
+    try { await media.createAlbum({ name: FOLDER_NAME }); } catch (_) {}
+    try {
+        const r = await media.getAlbumsPath();
+        _albumPath = r.path + '/' + FOLDER_NAME;
+        console.log('[DEBUG] 相册路径:', _albumPath);
+        return _albumPath;
+    } catch (e) { return null; }
+}
+
 // 保存单张图片到相册
 async function saveSingleImage(dataUrl, fileName) {
+    const media = window.Capacitor?.Plugins?.Media;
+    if (!media) return { success: false, error: 'Media plugin not available' };
+
+    // 方法1: Media.savePhoto（直接写入系统相册）
     try {
-        const base64Data = getBase64Data(dataUrl);
-        const filePath = `${FOLDER_NAME}/${fileName}`;
-        
-        // 使用 Filesystem 保存到外部存储
+        const albumPath = await ensureAlbum();
+        if (albumPath) {
+            const result = await media.savePhoto({
+                path: dataUrl,
+                albumIdentifier: albumPath,
+                fileName: fileName.replace(/\.[^.]+$/, '')
+            });
+            console.log('[DEBUG] savePhoto 成功:', result.filePath);
+            return { success: true, uri: result.filePath };
+        }
+    } catch (e1) {
+        console.log('[DEBUG] savePhoto 失败:', e1.message);
+    }
+
+    // 方法2: Filesystem + scanFile 兜底
+    try {
         const fs = window.Capacitor?.Plugins?.Filesystem;
         const dir = window.Capacitor?.Plugins?.Directory;
-        
-        if (!fs || !dir) {
-            console.log('[DEBUG] Filesystem 插件不可用');
-            return { success: false, error: 'Filesystem not available' };
-        }
-        
+        if (!fs || !dir) return { success: false, error: 'Filesystem not available' };
+        const base64Data = getBase64Data(dataUrl);
+        const filePath = `${FOLDER_NAME}/${fileName}`;
         const result = await fs.writeFile({
-            path: filePath,
-            data: base64Data,
-            directory: dir.External,
-            recursive: true
+            path: filePath, data: base64Data,
+            directory: dir.External, recursive: true
         });
-        
-        console.log('[DEBUG] 文件已保存到:', result.uri);
-        
-        // 刷新相册（让图片立刻出现在相册里）
-        const media = window.Capacitor?.Plugins?.Media;
-        if (media) {
-            try {
-                await media.scanFile({ path: result.uri });
-                console.log('[DEBUG] 相册已刷新');
-            } catch (scanError) {
-                console.log('[DEBUG] 相册刷新失败（非致命）:', scanError.message);
-            }
-        }
-        
+        console.log('[DEBUG] Filesystem 写入:', result.uri);
+        try { await media.scanFile({ path: result.uri.replace(/^file:\/\//, '') }); } catch (_) {}
         return { success: true, uri: result.uri };
-    } catch (e) {
-        console.error('[DEBUG] saveSingleImage 失败:', e.message);
-        return { success: false, error: e.message };
+    } catch (e2) {
+        console.error('[DEBUG] Filesystem 也失败:', e2.message);
     }
+    return { success: false, error: '所有保存方法均失败' };
 }
 
 // 批量保存（带进度回调）

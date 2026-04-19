@@ -1,4 +1,4 @@
-const CACHE_NAME = 'designer-tools-v107';
+const CACHE_NAME = 'designer-tools-v108';
 const urlsToCache = [
   '/',
   '/index.html',

@@ -4,7 +4,7 @@
 
 const TOOLS_DATA = {
     // 版本号
-    version: '1.0.7',
+    version: '1.0.8',
 
     // 分类定义
     categories: [
