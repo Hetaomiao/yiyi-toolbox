@@ -559,6 +559,9 @@ function loadToolContent(toolId) {
             html += getDefaultToolView(toolId);
     }
     
+    // 关闭外层div
+    html += `</div>`;
+    
     try {
         toolContent.innerHTML = html;
     } catch(e) {
