@@ -4113,7 +4113,8 @@ function bindImageFormatEvents() {
         ctx.drawImage(currentImg, 0, 0);
         resultUrl = canvas.toDataURL('image/' + outType, 0.92);
         const ext = outType === 'jpeg' ? 'jpg' : outType;
-        document.getElementById('fmtPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'converted.'+'${ext}')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('fmtPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" id="fmtDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('fmtDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'converted.' + ext));
         showToast('格式转换完成！');
     });
 }
@@ -4142,7 +4143,8 @@ function bindImageCropEvents() {
         const sy = Math.max(0, (currentImg.naturalHeight - cropH) / 2);
         ctx.drawImage(currentImg, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('cropPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'cropped.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('cropPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" id="cropDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('cropDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'cropped.png'));
         showToast('裁剪完成！');
     });
 }
@@ -4178,7 +4180,8 @@ function bindImageWatermarkEvents() {
         ctx.fillText(text, 20, canvas.height - 20);
         ctx.globalAlpha = 1;
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('wmPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'watermarked.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('wmPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" id="wmDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('wmDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'watermarked.png'));
         showToast('水印添加完成！');
     });
 }
@@ -4209,7 +4212,12 @@ function bindImageGrid9Events() {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(currentImg, col * w, row * h, w, h, 0, 0, w, h);
                 const dataUrl = canvas.toDataURL('image/png');
-                grid.innerHTML += `<img src="${dataUrl}" style="width:100%;cursor:pointer;border-radius:4px;" onclick="downloadSingle('${dataUrl}', 'grid_${row+1}_${col+1}.png')" title="第${row+1}行${col+1}列">`;
+                const gridItem = document.createElement('img');
+                gridItem.src = dataUrl;
+                gridItem.style.cssText = 'width:100%;cursor:pointer;border-radius:4px;';
+                gridItem.title = `第${row+1}行${col+1}列`;
+                gridItem.addEventListener('click', () => downloadSingle(dataUrl, `grid_${row+1}_${col+1}.png`));
+                grid.appendChild(gridItem);
             }
         }
         document.getElementById('g9Results').style.display = 'block';
@@ -4251,7 +4259,8 @@ function bindImageAdjustEvents() {
         ctx.drawImage(currentImg, 0, 0);
         ctx.filter = 'none';
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('adjPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'adjusted.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('adjPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" id="adjDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('adjDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'adjusted.png'));
         showToast('调整完成！');
     });
 }
@@ -4282,7 +4291,8 @@ function bindImageBlurEvents() {
         ctx.drawImage(currentImg, 0, 0);
         ctx.filter = 'none';
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('blurPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'blurred.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('blurPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" id="blurDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('blurDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'blurred.png'));
         showToast('模糊处理完成！');
     });
 }
@@ -4317,7 +4327,8 @@ function bindImageRotateEvents() {
         ctx.rotate(rad);
         ctx.drawImage(currentImg, -w / 2, -h / 2);
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('rotPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'rotated.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('rotPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;"><br><button class="btn btn-primary" id="rotDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('rotDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'rotated.png'));
         showToast('旋转完成！');
     });
 }
@@ -4353,7 +4364,8 @@ function bindImageRadiusEvents() {
         roundedRect(ctx, 0, 0, w, h, radius);
         ctx.fill();
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('radPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:${radius}px;"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'rounded.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('radPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:${radius}px;"><br><button class="btn btn-primary" id="radDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('radDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'rounded.png'));
         showToast('圆角添加完成！');
     });
 }
@@ -4384,7 +4396,8 @@ function bindImageBorderEvents() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(currentImg, bw, bw);
         resultUrl = canvas.toDataURL('image/png');
-        document.getElementById('borPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;border:${bw}px solid ${color};"><br><button class="btn btn-primary" onclick="downloadSingle('${resultUrl}', 'bordered.png')" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('borPreview').innerHTML = `<img src="${resultUrl}" style="max-width:100%;border-radius:8px;border:${bw}px solid ${color};"><br><button class="btn btn-primary" id="borDownloadBtn" style="margin-top:10px;">📥 下载</button>`;
+        document.getElementById('borDownloadBtn').addEventListener('click', () => downloadSingle(resultUrl, 'bordered.png'));
         showToast('边框添加完成！');
     });
 }
