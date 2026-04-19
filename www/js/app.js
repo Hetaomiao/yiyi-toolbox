@@ -321,7 +321,7 @@ function showCategory(categoryId) {
         elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important;';
         elements.sectionTitle.textContent = '👤 我的';
         elements.toolCount.textContent = '';
-        setToolContent(getProfileView());
+        elements.toolsGrid.innerHTML = getProfileView();
         bindProfileEvents();
         updateBottomNavActive('me');
         return;
@@ -341,7 +341,7 @@ function showCategory(categoryId) {
     elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important; position: relative !important;';
     elements.sectionTitle.textContent = category.name;
     elements.toolCount.textContent = `${tools.length} 个工具`;
-    setToolContent(tools.map(tool => `
+    elements.toolsGrid.innerHTML = tools.map(tool => `
         <div class="tool-card" data-tool="${tool.id}">
             <div class="tool-icon">${tool.icon}</div>
             <div class="tool-name">${tool.name}</div>
@@ -371,7 +371,7 @@ function showSearchResults(query) {
     elements.toolCount.textContent = `${results.length} 个结果`;
 
     if (results.length === 0) {
-        setToolContent(`
+        elements.toolsGrid.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">🔍</div>
                 <div class="empty-state-text">未找到相关工具</div>
@@ -380,7 +380,7 @@ function showSearchResults(query) {
         return;
     }
 
-    setToolContent(results.map(tool => `
+    elements.toolsGrid.innerHTML = results.map(tool => `
         <div class="tool-card" data-tool="${tool.id}">
             <div class="tool-icon">${tool.icon}</div>
             <div class="tool-name">${tool.name}</div>
@@ -3373,16 +3373,6 @@ function bindExchangeRateEvents() {
 // 辅助函数
 // ========================================
 
-// 设置工具内容（带动画）
-function setToolContent(html) {
-    const grid = document.getElementById('toolsGrid');
-    if (grid) {
-        grid.innerHTML = html;
-        grid.classList.remove('tool-fade-in');
-        void grid.offsetWidth;
-        grid.classList.add('tool-fade-in');
-    }
-}
 
 function copyText(id) {
     navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('已复制'));
