@@ -4282,43 +4282,52 @@ function roundedRect(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
-// 全局下载辅助函数 - 使用系统分享面板
+// 全局下载辅助函数 - 使用 Capacitor 原生插件保存到相册
 async function downloadSingle(dataUrl, filename) {
     try {
-        // 转换为 blob
+        // 转换 dataUrl 为 blob
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         
-        // 创建文件
-        const file = new File([blob], filename, { type: blob.type });
+        // 转换为 base64
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(blob);
+        });
         
-        // 使用系统分享面板（Android/iOS 都支持）
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                files: [file],
-                title: filename,
-                text: '分享图片'
-            });
-        } else if (navigator.share) {
-            // 部分设备不支持 files，分享链接
-            await navigator.share({
-                title: filename,
-                text: '分享图片'
-            });
-        } else {
-            // 降级：创建下载链接
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = filename;
-            a.click();
-        }
+        // 使用 Capacitor Filesystem 保存到相册
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        
+        // 保存文件到缓存目录
+        const fileName = filename || 'image_' + Date.now() + '.png';
+        const result = await Filesystem.writeFile({
+            path: fileName,
+            data: base64,
+            directory: Directory.Cache,
+            recursive: true
+        });
+        
+        // 使用 Share API 分享文件（可以保存/分享到任何地方）
+        const { Share } = await import('@capacitor/share');
+        await Share.share({
+            files: [result.uri],
+            title: fileName,
+            text: '保存图片'
+        });
+        
     } catch(e) {
         console.error('下载失败:', e);
-        // 降级方案
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = filename;
-        a.click();
+        // 降级：使用 dataUrl 直接下载
+        try {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename || 'image.png';
+            a.click();
+        } catch(e2) {
+            console.error('降级下载也失败:', e2);
+            showToast('下载失败，请尝试截图保存');
+        }
     }
 }
 
