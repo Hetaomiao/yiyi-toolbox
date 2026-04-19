@@ -76,6 +76,13 @@ function bindEvents() {
     elements.backBtn.addEventListener('click', goBack);
 }
 
+// 返回功能
+function goBack() {
+    elements.toolDetail.style.display = 'none';
+    elements.toolsSection.style.display = 'block';
+    elements.welcomeSection.style.display = 'none';
+}
+
 // 底部导航 - 移动端点击修复版
 function setupBottomNav() {
     const navContainer = elements.bottomNav;
