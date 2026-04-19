@@ -289,6 +289,8 @@ function showTool(toolId) {
     elements.toolsSection.style.visibility = 'hidden';
     elements.toolDetail.style.display = 'block';
     elements.toolDetail.style.visibility = 'visible';
+    elements.toolDetail.style.opacity = '1 !important';
+    elements.toolDetail.style.pointerEvents = 'auto';
 
     elements.toolTitle.textContent = tool.name;
     debugEl.innerHTML += `title set: ${tool.name}<br>`;
