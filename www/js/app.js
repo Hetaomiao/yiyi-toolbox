@@ -6764,76 +6764,40 @@ function bindProfileEvents() {
         updateProgress.style.display = 'none';
 
         try {
-            // GitHub Token (内网私有工具，直接使用)
-            const GITHUB_TOKEN = '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';
-            
-            // 调用 GitHub API 获取最新构建
-            const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs', {
+            // 调用 GitHub API 获取最新 release
+            const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/releases/latest', {
                 headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': 'Bearer ' + GITHUB_TOKEN
+                    'Accept': 'application/vnd.github.v3+json'
                 }
             });
 
             if (!response.ok) throw new Error('网络请求失败');
 
             const data = await response.json();
-            const latestRun = data.workflow_runs.find(r => r.conclusion === 'success');
+            const latestVersion = data.tag_name; // 例如 v1.0.2-tool-fix
+            const releaseName = data.name;       // 例如 工具面板修复版 v1.0.2
+            const downloadUrl = data.assets[0]?.browser_download_url;
 
-            if (!latestRun) {
-                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
-                return;
-            }
+            // 解析真实版本号 (从 v1.0.2-tool-fix 提取 1.0.2)
+            const versionMatch = latestVersion.match(/v?(\d+\.\d+\.\d+)/);
+            const realVersion = versionMatch ? versionMatch[1] : latestVersion;
 
-            // 获取构建时间
-            const buildDate = new Date(latestRun.created_at).toLocaleDateString('zh-CN');
             updateStatusText.innerHTML = `
                 <span style="color:#10b981;">✅ 发现新版本！</span><br>
-                <span style="font-size:12px;">构建时间: ${buildDate}</span>
+                <span style="color:var(--primary);font-weight:bold;">${releaseName}</span><br>
+                <span style="font-size:12px;color:var(--text-muted);">版本号: v${realVersion}</span>
             `;
 
-            // 获取下载链接
-            const artifactsResponse = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs/${latestRun.id}/artifacts`, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': 'Bearer ' + GITHUB_TOKEN
-                }
-            });
-
-            if (!artifactsResponse.ok) throw new Error('获取下载链接失败');
-
-            const artifactsData = await artifactsResponse.json();
-            const apkArtifact = artifactsData.artifacts.find(a => a.name === 'apk');
-
-            if (!apkArtifact) {
-                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
-                return;
-            }
-
-            // 下载 APK - GitHub 需要通过浏览器下载
-            const artifactsResponse2 = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/artifacts/${apkArtifact.id}`, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': 'Bearer ' + GITHUB_TOKEN
-                }
-            });
-            
-            const artifactData = await artifactsResponse2.json();
-            
-            updateStatusText.innerHTML = `
-                <span style="color:#10b981;">✅ 发现新版本！</span><br>
-                <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
-                <span style="color:var(--primary);">点击下方按钮下载安装</span>
-            `;
-            
-            // 在 App 中打开 GitHub Actions 页面让用户下载
-            if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
-                const { Browser } = Capacitor.Plugins;
-                if (Browser) {
-                    await Browser.open({ url: 'https://github.com/Hetaomiao/yiyi-toolbox/actions' });
-                }
+            if (downloadUrl) {
+                // 直接下载 APK
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = 'yiyi-toolbox.apk';
+                a.click();
+                updateStatusText.innerHTML += `<br><span style="color:#10b981;">已开始下载...</span>`;
             } else {
-                window.open('https://github.com/Hetaomiao/yiyi-toolbox/actions', '_blank');
+                // fallback: 打开 GitHub 下载页
+                window.open(data.html_url, '_blank');
             }
 
         } catch (error) {
