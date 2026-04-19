@@ -142,7 +142,9 @@ body {
     border-right: 1px solid var(--border);
     overflow-y: auto;
     z-index: 900;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    transform: translateX(-100%);
+    opacity: 0;
 }
 
 .sidebar-header {

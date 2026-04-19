@@ -149,6 +149,35 @@ function showWelcome() {
     elements.toolDetail.style.visibility = 'hidden';
 }
 
+// 侧边栏菜单切换
+function toggleMenu() {
+    console.log('[DEBUG] toggleMenu called, current:', AppState.isMenuOpen);
+    const sidebar = elements.sidebar;
+    if (!sidebar) {
+        console.error('[DEBUG] sidebar not found');
+        return;
+    }
+    
+    if (AppState.isMenuOpen) {
+        sidebar.style.transform = 'translateX(-100%)';
+        sidebar.style.opacity = '0';
+        AppState.isMenuOpen = false;
+    } else {
+        sidebar.style.transform = 'translateX(0)';
+        sidebar.style.opacity = '1';
+        AppState.isMenuOpen = true;
+    }
+}
+
+// 关闭菜单
+function closeMenu() {
+    const sidebar = elements.sidebar;
+    if (!sidebar) return;
+    sidebar.style.transform = 'translateX(-100%)';
+    sidebar.style.opacity = '0';
+    AppState.isMenuOpen = false;
+}
+
 // 初始化函数
 function init() {
     console.log('[DEBUG] init() called');
@@ -6753,10 +6782,14 @@ function bindProfileEvents() {
         updateProgress.style.display = 'none';
 
         try {
+            // GitHub Token (内网私有工具，直接使用)
+            const GITHUB_TOKEN = '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';
+            
             // 调用 GitHub API 获取最新构建
             const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs', {
                 headers: {
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN
                 }
             });
 
@@ -6780,7 +6813,8 @@ function bindProfileEvents() {
             // 获取下载链接
             const artifactsResponse = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs/${latestRun.id}/artifacts`, {
                 headers: {
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN
                 }
             });
 
@@ -6794,41 +6828,30 @@ function bindProfileEvents() {
                 return;
             }
 
-            updateStatusText.innerHTML += '<br><span style="color:var(--primary);">正在下载...</span>';
-            updateProgress.style.display = 'block';
-
-            // 下载 APK
-            updateProgressBar.style.width = '30%';
-            updateProgressText.textContent = '30%';
-
-            // 使用 Capacitor Browser 打开下载链接
-            // 由于是跨域，我们需要通过代理或者直接打开
-            // 在 Capacitor App 中可以直接打开 GitHub 的下载链接
-            const downloadUrl = apkArtifact.archive_download_url;
-
-            updateProgressBar.style.width = '100%';
-            updateProgressText.textContent = '准备下载...';
-
-            // 提示用户下载
+            // 下载 APK - GitHub 需要通过浏览器下载
+            const artifactsResponse2 = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/artifacts/${apkArtifact.id}`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN
+                }
+            });
+            
+            const artifactData = await artifactsResponse2.json();
+            
             updateStatusText.innerHTML = `
-                <span style="color:#10b981;">✅ 准备开始下载...</span><br>
-                <span style="font-size:12px;">下载完成后请安装 APK</span><br>
-                <a href="${downloadUrl}" id="downloadLink" style="display:none;"></a>
+                <span style="color:#10b981;">✅ 发现新版本！</span><br>
+                <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
+                <span style="color:var(--primary);">点击下方按钮下载安装</span>
             `;
-
-            // 在 App 中打开下载链接
+            
+            // 在 App 中打开 GitHub Actions 页面让用户下载
             if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
-                // Capacitor App 中使用 Browser 插件
                 const { Browser } = Capacitor.Plugins;
                 if (Browser) {
-                    await Browser.open({ url: downloadUrl });
+                    await Browser.open({ url: 'https://github.com/Hetaomiao/yiyi-toolbox/actions' });
                 }
             } else {
-                // 浏览器中，触发下载
-                const link = document.getElementById('downloadLink');
-                link.href = downloadUrl;
-                link.download = 'yiyi-toolbox.apk';
-                link.click();
+                window.open('https://github.com/Hetaomiao/yiyi-toolbox/actions', '_blank');
             }
 
         } catch (error) {
