@@ -650,3 +650,93 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+
+/* 工具切换过渡动画 */
+.tool-fade-in {
+    animation: toolFadeIn 0.25s ease-out;
+}
+@keyframes toolFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 裁剪比例锁定 */
+.ratio-lock-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.ratio-lock-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* 我的页面美化 */
+.profile-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: transform 0.15s;
+}
+.profile-card:active {
+    transform: scale(0.98);
+}
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.profile-stat {
+    text-align: center;
+    padding: 16px 8px;
+    background: var(--bg-card);
+    border-radius: 12px;
+}
+.profile-stat .num {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+}
+.profile-stat .label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.profile-action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+.profile-action:active {
+    transform: scale(0.97);
+    background: var(--bg-hover);
+}
+.profile-action .icon {
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--bg-dark);
+}

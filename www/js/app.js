@@ -321,7 +321,7 @@ function showCategory(categoryId) {
         elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important;';
         elements.sectionTitle.textContent = '👤 我的';
         elements.toolCount.textContent = '';
-        elements.toolsGrid.innerHTML = getProfileView();
+        setToolContent(getProfileView());
         bindProfileEvents();
         updateBottomNavActive('me');
         return;
@@ -341,7 +341,7 @@ function showCategory(categoryId) {
     elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important; position: relative !important;';
     elements.sectionTitle.textContent = category.name;
     elements.toolCount.textContent = `${tools.length} 个工具`;
-    elements.toolsGrid.innerHTML = tools.map(tool => `
+    setToolContent(tools.map(tool => `
         <div class="tool-card" data-tool="${tool.id}">
             <div class="tool-icon">${tool.icon}</div>
             <div class="tool-name">${tool.name}</div>
@@ -371,7 +371,7 @@ function showSearchResults(query) {
     elements.toolCount.textContent = `${results.length} 个结果`;
 
     if (results.length === 0) {
-        elements.toolsGrid.innerHTML = `
+        setToolContent(`
             <div class="empty-state">
                 <div class="empty-state-icon">🔍</div>
                 <div class="empty-state-text">未找到相关工具</div>
@@ -380,7 +380,7 @@ function showSearchResults(query) {
         return;
     }
 
-    elements.toolsGrid.innerHTML = results.map(tool => `
+    setToolContent(results.map(tool => `
         <div class="tool-card" data-tool="${tool.id}">
             <div class="tool-icon">${tool.icon}</div>
             <div class="tool-name">${tool.name}</div>
@@ -852,11 +852,12 @@ function setupImageUpload(areaId, inputId, callback) {
     
     // 触摸结束时直接触发（手机浏览器）
     area.addEventListener('touchend', (e) => {
+        e.preventDefault();
         if (e.target.tagName !== 'INPUT') {
             touchFired = true;
             input.click();
         }
-    }, { passive: true });
+    });
     
     // 点击只在非touch触发时运行（桌面浏览器）
     area.addEventListener('click', (e) => {
@@ -1473,13 +1474,14 @@ function bindImageCanonWatermarkEvents() {
     const fileInput = document.getElementById('cwFile');
     let touchFired = false;
     
-    uploadArea.addEventListener('touchstart', () => { touchFired = false; }, { passive: true });
+    uploadArea.addEventListener('touchstart', () => { touchFired = false; });
     uploadArea.addEventListener('touchend', (e) => {
+        e.preventDefault();
         if (e.target.tagName !== 'INPUT') {
             touchFired = true;
             fileInput.click();
         }
-    }, { passive: true });
+    });
     // click只在非touch触发时运行（桌面浏览器）
     uploadArea.addEventListener('click', (e) => {
         if (touchFired) return;
@@ -3896,9 +3898,17 @@ function getImageCropView() {
                 <input type="file" id="cropFileInput" accept="image/*" style="display:none;">
             </div>
             <div id="cropPreview" style="margin-top:15px;text-align:center;"></div>
-            <div class="form-row" style="margin-top:15px;">
-                <div class="form-group"><label>宽度</label><input type="number" id="cropW" class="input" value="200" style="width:80px;"></div>
-                <div class="form-group"><label>高度</label><input type="number" id="cropH" class="input" value="200" style="width:80px;"></div>
+            <div class="form-row" style="margin-top:15px;align-items:end;">
+                <div class="form-group"><label>宽度</label><input type="number" id="cropW" class="input" value="500" style="width:80px;"></div>
+                <div class="form-group"><label>高度</label><input type="number" id="cropH" class="input" value="500" style="width:80px;"></div>
+                <div class="form-group"><button id="cropRatioLock" class="ratio-lock-btn active" onclick="this.classList.toggle('active')">🔒 等比</button></div>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="setCropRatio(1,1)" style="padding:6px 12px;font-size:12px;">1:1</button>
+                <button class="btn btn-secondary" onclick="setCropRatio(4,3)" style="padding:6px 12px;font-size:12px;">4:3</button>
+                <button class="btn btn-secondary" onclick="setCropRatio(16,9)" style="padding:6px 12px;font-size:12px;">16:9</button>
+                <button class="btn btn-secondary" onclick="setCropRatio(3,2)" style="padding:6px 12px;font-size:12px;">3:2</button>
+                <button class="btn btn-secondary" onclick="setCropRatio(9,16)" style="padding:6px 12px;font-size:12px;">9:16</button>
             </div>
             <button class="btn btn-primary" id="cropBtn" style="width:100%;margin-top:15px;">✂️ 裁剪</button>
         </div>
@@ -4094,17 +4104,46 @@ function bindImageFormatEvents() {
     });
 }
 
+
+// 设置裁剪比例
+function setCropRatio(w, h) {
+    const cropW = document.getElementById('cropW');
+    const cropH = document.getElementById('cropH');
+    if (cropW.value) {
+        cropH.value = Math.round(cropW.value * h / w);
+    }
+}
 // 2. 裁剪
 function bindImageCropEvents() {
     let currentFile = null, currentImg = null, resultUrl = '';
+    let ratioW = 1, ratioH = 1;
+    
     setupImageUpload('cropUpload', 'cropFileInput', (files) => {
         if (!files.length) return;
         currentFile = files[0];
         currentImg = new Image();
         currentImg.onload = () => {
-            document.getElementById('cropPreview').innerHTML = `<img src="${URL.createObjectURL(currentFile)}" style="max-width:100%;border-radius:8px;">`;
+            document.getElementById('cropPreview').innerHTML = `<img src="${URL.createObjectURL(currentFile)}" style="max-width:100%;border-radius:8px;"><p style="color:var(--text-muted);font-size:12px;margin-top:8px;">原图: ${currentImg.naturalWidth}×${currentImg.naturalHeight}</p>`;
         };
         currentImg.src = URL.createObjectURL(currentFile);
+    });
+    
+    // 宽度变化时自动调整高度
+    document.getElementById('cropW').addEventListener('input', (e) => {
+        const lock = document.getElementById('cropRatioLock');
+        if (lock && lock.classList.contains('active')) {
+            const w = parseInt(e.target.value) || 500;
+            const cropH = document.getElementById('cropH');
+            cropH.value = Math.round(w * ratioH / ratioW);
+        }
+    });
+    document.getElementById('cropH').addEventListener('input', (e) => {
+        const lock = document.getElementById('cropRatioLock');
+        if (lock && lock.classList.contains('active')) {
+            const h = parseInt(e.target.value) || 500;
+            const cropW = document.getElementById('cropW');
+            cropW.value = Math.round(h * ratioW / ratioH);
+        }
     });
     document.getElementById('cropBtn').addEventListener('click', () => {
         if (!currentImg) { showToast('请先上传图片'); return; }
@@ -4203,24 +4242,37 @@ function bindImageGrid9Events() {
 // 5. 图片调整（亮度/对比度/饱和度）
 function bindImageAdjustEvents() {
     let currentFile = null, currentImg = null, resultUrl = '';
+    let previewDebounce = null;
+    
+    // 实时预览函数
+    function updatePreview() {
+        if (!currentImg) return;
+        const brightness = parseInt(document.getElementById('adjBrightness').value);
+        const contrast = parseInt(document.getElementById('adjContrast').value);
+        const saturation = parseInt(document.getElementById('adjSaturation').value);
+        const previewDiv = document.getElementById('adjPreview');
+        previewDiv.style.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    }
+    
     setupImageUpload('adjUpload', 'adjFileInput', (files) => {
         if (!files.length) return;
         currentFile = files[0];
         currentImg = new Image();
         currentImg.onload = () => {
-            document.getElementById('adjPreview').innerHTML = `<img src="${URL.createObjectURL(currentFile)}" style="max-width:100%;border-radius:8px;">`;
+            document.getElementById('adjPreview').innerHTML = `<img src="${URL.createObjectURL(currentFile)}" style="max-width:100%;border-radius:8px;" id="adjImg">`;
         };
         currentImg.src = URL.createObjectURL(currentFile);
     });
-    document.getElementById('adjBrightness').addEventListener('input', (e) => {
-        document.getElementById('adjBriVal').textContent = e.target.value;
+    
+    ['adjBrightness','adjContrast','adjSaturation'].forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            const valId = id.replace('adj','').replace('Brightness','BriVal').replace('Contrast','ConVal').replace('Saturation','SatVal');
+            document.getElementById(valId).textContent = e.target.value;
+            clearTimeout(previewDebounce);
+            previewDebounce = setTimeout(updatePreview, 50);
+        });
     });
-    document.getElementById('adjContrast').addEventListener('input', (e) => {
-        document.getElementById('adjConVal').textContent = e.target.value;
-    });
-    document.getElementById('adjSaturation').addEventListener('input', (e) => {
-        document.getElementById('adjSatVal').textContent = e.target.value;
-    });
+    
     document.getElementById('adjBtn').addEventListener('click', () => {
         if (!currentImg) { showToast('请先上传图片'); return; }
         const brightness = parseInt(document.getElementById('adjBrightness').value);
@@ -6990,62 +7042,42 @@ async function downloadAllToFolder(files) {
 // ========================================
 
 function getProfileView() {
+    const toolCount = TOOLS_DATA.tools.length;
+    const catCount = TOOLS_DATA.categories.length;
     return `
         <div style="padding:20px;">
-            <div style="text-align:center;margin-bottom:30px;">
-                <div style="font-size:80px;margin-bottom:15px;">🎨</div>
-                <h2 style="margin:0 0 5px 0;">设计师工具箱</h2>
-                <p style="color:var(--text-muted);margin:0;">版本 ${TOOLS_DATA.version}</p>
+            <div style="text-align:center;margin-bottom:24px;">
+                <div style="font-size:64px;margin-bottom:12px;">🎨</div>
+                <h2 style="margin:0 0 4px 0;font-size:20px;">设计师工具箱</h2>
+                <p style="color:var(--text-muted);margin:0;font-size:13px;">v${TOOLS_DATA.version} · 一一科技出品</p>
             </div>
 
-            <div style="background:var(--bg-card);border-radius:12px;padding:20px;margin-bottom:20px;">
-                <h3 style="margin:0 0 15px 0;font-size:16px;color:var(--text-secondary);">📱 应用信息</h3>
-
-                <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
-                    <span>当前版本</span>
-                    <span style="color:var(--primary);font-weight:500;">v${TOOLS_DATA.version}</span>
-                </div>
-
-                <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
-                    <span>构建时间</span>
-                    <span style="color:var(--text-muted);">${new Date().toLocaleDateString('zh-CN')}</span>
-                </div>
-
-                <div style="display:flex;justify-content:space-between;padding:12px 0;">
-                    <span>工具总数</span>
-                    <span style="color:var(--primary);font-weight:500;">${TOOLS_DATA.tools.length}+</span>
-                </div>
+            <div class="profile-grid">
+                <div class="profile-stat"><div class="num">${toolCount}+</div><div class="label">工具</div></div>
+                <div class="profile-stat"><div class="num">${catCount}</div><div class="label">分类</div></div>
+                <div class="profile-stat"><div class="num">免费</div><div class="label">永久</div></div>
             </div>
 
-            <div style="background:var(--bg-card);border-radius:12px;padding:20px;margin-bottom:20px;">
-                <h3 style="margin:0 0 15px 0;font-size:16px;color:var(--text-secondary);">🔄 检查更新</h3>
+            <div class="profile-action" onclick="document.getElementById('checkUpdateBtn').click();">
+                <div class="icon">🔄</div>
+                <div style="flex:1;"><div style="font-weight:500;">检查更新</div><div style="font-size:12px;color:var(--text-muted);">v${TOOLS_DATA.version}</div></div>
+                <div style="color:var(--text-muted);">›</div>
+            </div>
+            <button id="checkUpdateBtn" style="display:none;"></button>
 
-                <button class="btn btn-primary" id="checkUpdateBtn" style="width:100%;margin-bottom:10px;">
-                    🔍 检查更新
-                </button>
-
-                <div id="updateStatus" style="text-align:center;padding:15px;color:var(--text-muted);display:none;">
-                    <div id="updateStatusText">检查中...</div>
-                    <div id="updateProgress" style="margin-top:10px;display:none;">
-                        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
-                            <div id="updateProgressBar" style="height:100%;background:var(--primary);width:0%;transition:width 0.3s;"></div>
-                        </div>
-                        <div style="font-size:12px;margin-top:5px;" id="updateProgressText">0%</div>
+            <div id="updateStatus" style="text-align:center;padding:15px;color:var(--text-muted);display:none;">
+                <div id="updateStatusText">检查中...</div>
+                <div id="updateProgress" style="margin-top:10px;display:none;">
+                    <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                        <div id="updateProgressBar" style="height:100%;background:var(--primary);width:0%;transition:width 0.3s;"></div>
                     </div>
+                    <div style="font-size:12px;margin-top:5px;" id="updateProgressText">0%</div>
                 </div>
             </div>
 
-            <div style="background:var(--bg-card);border-radius:12px;padding:20px;">
-                <h3 style="margin:0 0 15px 0;font-size:16px;color:var(--text-secondary);">ℹ️ 关于</h3>
-
-                <div style="color:var(--text-muted);font-size:13px;line-height:1.6;">
-                    <p>设计师工具箱是一款纯前端工具合集，专为设计师和创意工作者打造。</p>
-                    <p>无需安装，即开即用，完全免费。</p>
-                </div>
-
-                <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border);text-align:center;">
-                    <span style="color:var(--text-muted);font-size:12px;">Made with ❤️ by 一一科技</span>
-                </div>
+            <div style="margin-top:16px;padding:16px;text-align:center;">
+                <span style="color:var(--text-muted);font-size:12px;">Made with ❤️ by 一一科技</span>
+            </div>
             </div>
         </div>
     `;
