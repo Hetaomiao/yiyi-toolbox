@@ -4481,12 +4481,26 @@ async function saveSingleImage(dataUrl, fileName) {
     // 方案1: Web Share API（最可靠 - Android会弹出保存到图库）
     try {
         if (navigator.share && navigator.canShare) {
-            const blob = await (await fetch(dataUrl)).blob();
-            const file = new File([blob], fileName, { type: blob.type || 'image/png' });
-            if (navigator.canShare({ files: [file] })) {
+            // 将 dataUrl 转换为 Blob
+            const arr = dataUrl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+            const blob = new Blob([u8arr], { type: mime });
+            const file = new File([blob], fileName, { type: mime });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file], title: fileName });
                 console.log('[DEBUG] WebShare 成功');
                 return { success: true, method: 'WebShare' };
+            }
+            // 如果不支持文件分享，尝试直接分享文本
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: fileName, text: 'image' });
+                    return { success: true, method: 'WebShare' };
+                } catch (e_text) { /* 继续下一个方案 */ }
             }
         }
     } catch (e1) {
