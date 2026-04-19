@@ -564,6 +564,11 @@ function loadToolContent(toolId) {
     
     try {
         toolContent.innerHTML = html;
+        // 强制触发重绘，确保 Android webview 能正确显示
+        toolContent.style.visibility = 'visible';
+        toolContent.style.opacity = '1';
+        toolContent.style.display = 'block';
+        toolContent.offsetHeight; // 强制重排
     } catch(e) {
         console.error('HTML设置失败:', e);
     }
