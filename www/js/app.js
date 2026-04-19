@@ -4297,65 +4297,69 @@ async function downloadSingle(dataUrl, filename) {
     try {
         const fileName = filename || 'image_' + Date.now() + '.png';
         
-        // 尝试使用 Capacitor Filesystem 保存并分享
+        // 尝试使用 Capacitor Media 插件保存到相册（推荐方案）
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Media) {
+            try {
+                console.log('[DEBUG] Using Media plugin to save photo');
+                // Media.savePhoto 需要不含前缀的纯 base64 数据
+                const base64Data = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl;
+                
+                await window.Capacitor.Plugins.Media.savePhoto({
+                    path: base64Data,
+                    fileName: fileName.replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
+                });
+                showToast('已保存到相册！');
+                return;
+            } catch(e) {
+                console.error('[DEBUG] Media plugin failed:', e);
+            }
+        }
+        
+        // 方案二：使用 Filesystem 保存到 Documents 目录
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
             try {
-                // 转换 dataUrl 为 blob
-                const res = await fetch(dataUrl);
-                const blob = await res.blob();
+                console.log('[DEBUG] Using Filesystem plugin to save file');
+                // 提取纯 base64 数据
+                const base64Data = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl;
                 
-                // 转换为 base64
-                const reader = new FileReader();
-                const base64 = await new Promise((resolve) => {
-                    reader.onload = () => resolve(reader.result.split(',')[1]);
-                    reader.readAsDataURL(blob);
-                });
-                
-                // 保存到 CACHE 目录
+                // 保存到 Documents 目录（用户可访问）
                 const result = await window.Capacitor.Plugins.Filesystem.writeFile({
                     path: fileName,
-                    data: base64,
-                    directory: 'CACHE',
+                    data: base64Data,
+                    directory: 'DOCUMENTS',
                     recursive: true
                 });
                 
                 console.log('[DEBUG] File saved to:', result.uri);
-                
-                // 使用 Web Share API (如果可用)
-                if (navigator.share && navigator.canShare) {
-                    const response = await fetch(result.uri);
-                    const fileBlob = await response.blob();
-                    const file = new File([fileBlob], fileName, { type: 'image/png' });
-                    
-                    if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: fileName,
-                            text: '保存图片'
-                        });
-                        showToast('已保存图片');
-                        return;
-                    }
-                }
-                
-                // 如果 Share 不可用，用超链接方式打开文件
-                const link = document.createElement('a');
-                link.href = result.uri;
-                link.target = '_blank';
-                link.rel = 'noopener';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                showToast('图片已保存，请从通知栏查看');
+                showToast('已保存到文档目录');
                 return;
-                
             } catch(e) {
-                console.error('[DEBUG] Capacitor download failed, falling back:', e);
-                // 降级到普通下载
+                console.error('[DEBUG] Filesystem plugin failed:', e);
             }
         }
         
-        // 降级：使用 Blob URL 下载
+        // 降级：使用 Web Share API
+        if (navigator.share) {
+            try {
+                const response = await fetch(dataUrl);
+                const blob = await response.blob();
+                const file = new File([blob], fileName, { type: 'image/png' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: fileName,
+                        text: '保存图片'
+                    });
+                    showToast('已分享/保存');
+                    return;
+                }
+            } catch(e) {
+                console.error('[DEBUG] Web Share failed:', e);
+            }
+        }
+        
+        // 最终降级：使用 Blob URL
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = fileName;
