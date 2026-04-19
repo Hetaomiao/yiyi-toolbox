@@ -4296,25 +4296,29 @@ async function downloadSingle(dataUrl, filename) {
             reader.readAsDataURL(blob);
         });
         
-        // 使用 Capacitor Filesystem 保存到相册
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        
-        // 保存文件到缓存目录
-        const fileName = filename || 'image_' + Date.now() + '.png';
-        const result = await Filesystem.writeFile({
-            path: fileName,
-            data: base64,
-            directory: Directory.Cache,
-            recursive: true
-        });
-        
-        // 使用 Share API 分享文件（可以保存/分享到任何地方）
-        const { Share } = await import('@capacitor/share');
-        await Share.share({
-            files: [result.uri],
-            title: fileName,
-            text: '保存图片'
-        });
+        // 检查 Capacitor 插件是否可用
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+            // 使用 Capacitor 原生插件
+            const fileName = filename || 'image_' + Date.now() + '.png';
+            const result = await window.Capacitor.Plugins.Filesystem.writeFile({
+                path: fileName,
+                data: base64,
+                directory: 'CACHE',
+                recursive: true
+            });
+            
+            // 使用 Share API 分享文件
+            if (window.Capacitor.Plugins.Share) {
+                await window.Capacitor.Plugins.Share.share({
+                    files: [result.uri],
+                    title: fileName,
+                    text: '保存图片'
+                });
+            }
+        } else {
+            // 降级：使用 dataUrl 直接下载
+            throw new Error('Capacitor not available');
+        }
         
     } catch(e) {
         console.error('下载失败:', e);
