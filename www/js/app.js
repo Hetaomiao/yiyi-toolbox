@@ -563,17 +563,33 @@ function loadToolContent(toolId) {
     html += `</div>`;
     
     try {
-        toolContent.innerHTML = html;
-        // 强制触发重绘，确保 Android webview 能正确显示
+        // 测试：用最明显的方式注入内容
+        toolContent.innerHTML = '<div style="width:100%;min-height:300px;background:red;color:white;font-size:30px;text-align:center;padding:50px 20px;box-sizing:border-box;">🚨 测试：这是工具内容区域<br>如果能看到红色说明CSS有问题！<br><br>工具ID: ' + toolId + '</div>';
+        
+        // 强制触发重绘
         toolContent.style.visibility = 'visible';
         toolContent.style.opacity = '1';
         toolContent.style.display = 'block';
-        toolContent.offsetHeight; // 强制重排
+        toolContent.style.position = 'relative';
+        toolContent.style.zIndex = '999';
         
-        // 调试：用红色边框确认区域存在
-        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-            toolContent.style.outline = '3px dashed red';
-        }
+        // 调试日志
+        console.log('[DEBUG] toolContent innerHTML set, offsetHeight:', toolContent.offsetHeight);
+        
+        // 延迟检查 DOM 是否有内容
+        setTimeout(() => {
+            console.log('[DEBUG] toolContent children length:', toolContent.children.length);
+            console.log('[DEBUG] toolContent offsetHeight:', toolContent.offsetHeight);
+            console.log('[DEBUG] toolContent visibility:', window.getComputedStyle(toolContent).visibility);
+            console.log('[DEBUG] toolContent display:', window.getComputedStyle(toolContent).display);
+        }, 100);
+        
+        // 延迟后再设置一次样式，确保生效
+        setTimeout(() => {
+            toolContent.style.visibility = 'visible';
+            toolContent.style.opacity = '1';
+            toolContent.style.display = 'block';
+        }, 200);
     } catch(e) {
         console.error('HTML设置失败:', e);
     }
