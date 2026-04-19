@@ -4447,41 +4447,60 @@ async function ensureAlbum() {
 
 // 保存单张图片到相册
 async function saveSingleImage(dataUrl, fileName) {
-    const media = window.Capacitor?.Plugins?.Media;
-    if (!media) return { success: false, error: 'Media plugin not available' };
-
-    // 方法1: Media.savePhoto（直接写入系统相册）
+    // 方案1: Web Share API（最可靠 - Android会弹出保存到图库）
     try {
-        const albumPath = await ensureAlbum();
-        if (albumPath) {
-            const result = await media.savePhoto({
-                path: dataUrl,
-                albumIdentifier: albumPath,
-                fileName: fileName.replace(/\.[^.]+$/, '')
-            });
-            console.log('[DEBUG] savePhoto 成功:', result.filePath);
-            return { success: true, uri: result.filePath };
+        if (navigator.share && navigator.canShare) {
+            const blob = await (await fetch(dataUrl)).blob();
+            const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: fileName });
+                console.log('[DEBUG] WebShare 成功');
+                return { success: true, method: 'WebShare' };
+            }
         }
     } catch (e1) {
-        console.log('[DEBUG] savePhoto 失败:', e1.message);
+        console.log('[DEBUG] WebShare 失败:', e1.message);
     }
 
-    // 方法2: Filesystem + scanFile 兜底
+    // 方案2: Media.savePhoto（需要 Capacitor Media 插件）
+    try {
+        const media = window.Capacitor?.Plugins?.Media;
+        if (media) {
+            const albumPath = await ensureAlbum();
+            if (albumPath) {
+                const result = await media.savePhoto({
+                    path: dataUrl,
+                    albumIdentifier: albumPath,
+                    fileName: fileName.replace(/\.[^.]+$/, '')
+                });
+                console.log('[DEBUG] savePhoto 成功:', result.filePath);
+                return { success: true, uri: result.filePath };
+            }
+        }
+    } catch (e2) {
+        console.log('[DEBUG] savePhoto 失败:', e2.message);
+    }
+
+    // 方案3: Filesystem + scanFile（最后兜底）
     try {
         const fs = window.Capacitor?.Plugins?.Filesystem;
         const dir = window.Capacitor?.Plugins?.Directory;
-        if (!fs || !dir) return { success: false, error: 'Filesystem not available' };
-        const base64Data = getBase64Data(dataUrl);
-        const filePath = `${FOLDER_NAME}/${fileName}`;
-        const result = await fs.writeFile({
-            path: filePath, data: base64Data,
-            directory: dir.External, recursive: true
-        });
-        console.log('[DEBUG] Filesystem 写入:', result.uri);
-        try { await media.scanFile({ path: result.uri.replace(/^file:\/\//, '') }); } catch (_) {}
-        return { success: true, uri: result.uri };
-    } catch (e2) {
-        console.error('[DEBUG] Filesystem 也失败:', e2.message);
+        const media = window.Capacitor?.Plugins?.Media;
+        if (fs && dir) {
+            const base64Data = getBase64Data(dataUrl);
+            const filePath = `${FOLDER_NAME}/${fileName}`;
+            const result = await fs.writeFile({
+                path: filePath, data: base64Data,
+                directory: dir.Documents, recursive: true
+            });
+            console.log('[DEBUG] Filesystem 写入:', result.uri);
+            if (media) {
+                try { await media.scanFile({ path: result.uri.replace(/^file:\/\//, '') }); } catch (_) {}
+            }
+            return { success: true, uri: result.uri };
+        }
+    } catch (e3) {
+        console.error('[DEBUG] Filesystem 也失败:', e3.message);
     }
     return { success: false, error: '所有保存方法均失败' };
 }
@@ -4529,59 +4548,30 @@ function fallbackDownload(dataUrl, filename) {
 // 主下载函数
 async function downloadSingle(dataUrl, filename) {
     const fileName = filename || 'image_' + Date.now() + '.png';
-    let lastError = null;
     
-    // 方案 1: Capacitor Filesystem（大哥推荐方案）
+    // 用 saveSingleImage 尝试所有保存方式（WebShare → Media → Filesystem）
     try {
-        if (window.Capacitor?.Plugins?.Filesystem) {
-            console.log('[DEBUG] 尝试方案1: Filesystem...');
-            const result = await saveSingleImage(dataUrl, fileName);
-            
-            if (result.success) {
-                showToast('✅ 已保存到相册/DesignToolBox');
-                return { success: true, method: 'Filesystem' };
-            } else {
-                console.log('[DEBUG] Filesystem 失败:', result.error);
-                lastError = new Error(result.error);
-            }
+        const result = await saveSingleImage(dataUrl, fileName);
+        if (result.success) {
+            const labels = { WebShare: '✅ 已分享到图库', Media: '✅ 已保存到相册' };
+            showToast(labels[result.method] || '✅ 已保存');
+            return result;
         }
-    } catch (error) {
-        console.log('[DEBUG] Filesystem 异常:', error.message);
-        lastError = error;
+    } catch (e) {
+        console.log('[DEBUG] saveSingleImage 错误:', e.message);
     }
     
-    // 方案 2: Web Share API
+    // 最后兜底：a.click() 下载到下载目录
     try {
-        if (navigator.share && navigator.canShare) {
-            console.log('[DEBUG] 尝试方案2: WebShare...');
-            const blob = await (await fetch(dataUrl)).blob();
-            const file = new File([blob], fileName, { type: blob.type || 'image/png' });
-            
-            if (navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: fileName });
-                showToast('✅ 已通过分享保存');
-                return { success: true, method: 'WebShare' };
-            }
-        }
-    } catch (error) {
-        console.log('[DEBUG] WebShare 失败:', error.message);
-        lastError = error;
-    }
-    
-    // 方案 3: 降级 a.click()
-    try {
-        console.log('[DEBUG] 尝试方案3: a.click()...');
         fallbackDownload(dataUrl, fileName);
-        showToast('📥 浏览器下载已开始');
+        showToast('📥 已开始下载，查看下载目录');
         return { success: true, method: 'Fallback' };
-    } catch (error) {
-        console.error('[DEBUG] Fallback 失败:', error.message);
-        lastError = error;
+    } catch (e) {
+        console.error('[DEBUG] Fallback 失败:', e.message);
     }
     
-    // 全部失败
     showToast('❌ 下载失败，请截图保存');
-    throw new Error(lastError?.message || '下载失败');
+    throw new Error('下载失败');
 }
 
 // 浏览器原生下载降级方案
@@ -4590,20 +4580,17 @@ function fallbackDownload(dataUrl, filename) {
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = filename || 'image.png';
-        a.target = '_blank';
-        a.rel = 'noopener';
         document.body.appendChild(a);
         a.click();
-        // 延迟移除元素
-        setTimeout(() => {
-            if (a.parentNode) {
-                document.body.removeChild(a);
-            }
-        }, 100);
-        showToast('📥 开始下载，请检查下载文件夹');
+        setTimeout(() => a.parentNode && a.remove(), 100);
+        showToast('📥 已开始下载，查看下载目录');
     } catch (e) {
-        console.error('浏览器下载也失败了:', e);
-        showToast('❌ 下载失败，请截图保存');
+        console.error('[DEBUG] a.click() 失败:', e.message);
+        try {
+            const w = window.open(dataUrl, '_blank');
+            if (w) { showToast('📱 长按图片保存到相册'); }
+            else { showToast('❌ 下载失败，请截图保存'); }
+        } catch (e2) { showToast('❌ 下载失败，请截图保存'); }
     }
 }
 
@@ -7166,14 +7153,21 @@ function bindProfileEvents() {
                 return;
             }
 
-            const version = release.tag_name;
-            const buildDate = new Date(release.published_at).toLocaleDateString('zh-CN');
+            const version = release.tag_name.replace(/^v/, '');
+            const currentVer = TOOLS_DATA.version || '0.0.0';
             const downloadUrl = apkAsset.browser_download_url;
+            const buildDate = new Date(release.published_at).toLocaleDateString('zh-CN');
+
+            // 版本比较
+            if (version === currentVer) {
+                updateStatusText.innerHTML = '<span style="color:#10b981;">✅ 当前已是最新版本 v' + currentVer + '</span>';
+                return;
+            }
 
             updateStatusText.innerHTML = `
-                <span style="color:#10b981;">✅ 发现新版本 ${version}</span><br>
+                <span style="color:#10b981;">✅ 发现新版本 v${version}</span><br>
+                <span style="font-size:12px;">当前版本: v${currentVer} → 最新: v${version}</span><br>
                 <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
-                <span style="color:var(--primary);">点击下方按钮下载安装</span><br><br>
                 <button onclick="openDownloadPage()" style="background:#10b981;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">📥 下载安装</button>
             `;
             window.openDownloadPage = function() {

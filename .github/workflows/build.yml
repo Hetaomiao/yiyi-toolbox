@@ -47,3 +47,20 @@ jobs:
       with:
         name: apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Create Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=$(node -e "console.log(require('./www/js/tools-data.js').match(/version:\s*['\"]([^'\"]+)/)[1])")
+        TAG="v${VERSION}"
+        echo "Creating release ${TAG}"
+        
+        # Create or update release
+        gh release create "${TAG}" android/app/build/outputs/apk/debug/app-debug.apk \
+          --title "${TAG}" \
+          --notes "一一工具箱 ${TAG}" \
+          --prerelease=false \
+          2>/dev/null || \
+        gh release upload "${TAG}" android/app/build/outputs/apk/debug/app-debug.apk \
+          --clobber
