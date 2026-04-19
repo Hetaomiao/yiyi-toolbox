@@ -3373,6 +3373,17 @@ function bindExchangeRateEvents() {
 // 辅助函数
 // ========================================
 
+// 设置工具内容（带动画）
+function setToolContent(html) {
+    const grid = document.getElementById('toolsGrid');
+    if (grid) {
+        grid.innerHTML = html;
+        grid.classList.remove('tool-fade-in');
+        void grid.offsetWidth;
+        grid.classList.add('tool-fade-in');
+    }
+}
+
 function copyText(id) {
     navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('已复制'));
 }
