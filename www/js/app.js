@@ -4287,12 +4287,44 @@ function roundedRect(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
-// 全局下载辅助函数
-function downloadSingle(dataUrl, filename) {
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = filename;
-    a.click();
+// 全局下载辅助函数 - 使用系统分享面板
+async function downloadSingle(dataUrl, filename) {
+    try {
+        // 转换为 blob
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        
+        // 创建文件
+        const file = new File([blob], filename, { type: blob.type });
+        
+        // 使用系统分享面板（Android/iOS 都支持）
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: filename,
+                text: '分享图片'
+            });
+        } else if (navigator.share) {
+            // 部分设备不支持 files，分享链接
+            await navigator.share({
+                title: filename,
+                text: '分享图片'
+            });
+        } else {
+            // 降级：创建下载链接
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            a.click();
+        }
+    } catch(e) {
+        console.error('下载失败:', e);
+        // 降级方案
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        a.click();
+    }
 }
 
 function bindBatchImgEvents() {
@@ -6789,8 +6821,14 @@ function bindProfileEvents() {
             const buildDate = new Date(latestRun.created_at).toLocaleDateString('zh-CN');
             updateStatusText.innerHTML = `
                 <span style="color:#10b981;">✅ 发现新版本！</span><br>
-                <span style="font-size:12px;">构建时间: ${buildDate}</span>
+                <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
+                <span style="color:var(--primary);">点击下方按钮下载安装</span><br><br>
+                <button onclick="openDownloadPage()" style="background:#10b981;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">📥 下载安装</button>
             `;
+            window.openDownloadPage = function() {
+                window.open('https://github.com/Hetaomiao/yiyi-toolbox/releases/download/v1.0.2-tool-fix/yiyi-toolbox-debug.apk', '_blank');
+            };
+            return;
 
             // 获取下载链接
             const artifactsResponse = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs/${latestRun.id}/artifacts`, {
@@ -6823,18 +6861,13 @@ function bindProfileEvents() {
             updateStatusText.innerHTML = `
                 <span style="color:#10b981;">✅ 发现新版本！</span><br>
                 <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
-                <span style="color:var(--primary);">点击下方按钮下载安装</span>
+                <span style="color:var(--primary);">点击下方按钮下载安装</span><br><br>
+                <button onclick="openDownloadPage()" style="background:#10b981;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">📥 下载安装</button>
             `;
             
-            // 在 App 中打开 GitHub Actions 页面让用户下载
-            if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
-                const { Browser } = Capacitor.Plugins;
-                if (Browser) {
-                    await Browser.open({ url: 'https://github.com/Hetaomiao/yiyi-toolbox/actions' });
-                }
-            } else {
-                window.open('https://github.com/Hetaomiao/yiyi-toolbox/actions', '_blank');
-            }
+            window.openDownloadPage = function() {
+                window.open(artifactData.archive_browser_download_url, '_blank');
+            };
 
         } catch (error) {
             console.error('检查更新失败:', error);
