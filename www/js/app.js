@@ -6883,3 +6883,6 @@ function bindProfileEvents() {
         }
     });
 }
+
+// 初始化
+bindEvents();
