@@ -301,16 +301,12 @@ function showTool(toolId) {
 
     AppState.currentTool = tool;
 
-    elements.welcomeSection.style.display = 'none';
-    elements.welcomeSection.style.visibility = 'hidden';
-    elements.toolsSection.style.display = 'none';
-    elements.toolsSection.style.visibility = 'hidden';
-    elements.toolDetail.style.display = 'block';
-    elements.toolDetail.style.visibility = 'visible';
-    elements.toolDetail.style.opacity = '1 !important';
-    elements.toolDetail.style.pointerEvents = 'auto';
+    elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+    elements.toolsSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+    elements.toolDetail.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;';
 
     elements.toolTitle.textContent = tool.name;
+    elements.toolTitle.style.cssText = 'display: block !important;';
 
     loadToolContent(toolId);
 }
