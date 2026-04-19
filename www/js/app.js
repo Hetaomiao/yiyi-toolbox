@@ -973,11 +973,8 @@ function bindImageCompressEvents() {
         if (!results.length) { showToast('没有可下载的图片'); return; }
         results.forEach((r, i) => {
             setTimeout(() => {
-                const a = document.createElement('a');
-                a.href = r.dataUrl;
-                a.download = `compressed_${i+1}.jpg`;
-                a.click();
-            }, i * 300);
+                downloadSingle(r.dataUrl, `compressed_${i+1}.jpg`);
+            }, i * 500);
         });
         showToast(`开始下载 ${results.length} 张图片`);
     });
@@ -1162,11 +1159,7 @@ function bindImageMergeEvents() {
     
     document.getElementById('downloadBtn').addEventListener('click', () => {
         if (resultUrl) {
-            const a = document.createElement('a');
-            a.href = resultUrl;
-            a.download = 'merged.png';
-            a.click();
-            showToast('下载成功！');
+            downloadSingle(resultUrl, 'merged.png');
         } else {
             showToast('请先拼接图片');
         }
@@ -2315,29 +2308,20 @@ function showCanonPreview(index) {
 }
 
 function downloadCanonSingle() {
-    // 优先下载已处理的图；没有则下载原图
     if (canonBatchResults.length === 0 && canonBatchFiles.length === 0) {
         showToast('没有可下载的图片');
         return;
     }
-    
     const result = canonBatchResults[canonCurrentIndex];
     if (result && result.dataUrl) {
-        const a = document.createElement('a');
-        a.href = result.dataUrl;
-        a.download = 'watermarked_' + (canonCurrentIndex + 1) + '.jpg';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(result.dataUrl, 'watermarked_' + (canonCurrentIndex + 1) + '.jpg');
     } else if (canonBatchFiles[canonCurrentIndex]) {
-        // 没有处理结果时，下载原图
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(canonBatchFiles[canonCurrentIndex]);
-        a.download = canonBatchFiles[canonCurrentIndex].name;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-        showToast('下载原图成功（未添加水印）');
+        const file = canonBatchFiles[canonCurrentIndex];
+        const reader = new FileReader();
+        reader.onload = function(e) { downloadSingle(e.target.result, file.name); };
+        reader.readAsDataURL(file);
     } else {
-        showToast('当前图片不可下载');
+        showToast('没有可下载的图片');
     }
 }
 
@@ -2355,24 +2339,19 @@ function downloadCanonAll() {
         setTimeout(() => {
             validResults.forEach((result, i) => {
                 setTimeout(() => {
-                    const a = document.createElement('a');
-                    a.href = result.dataUrl;
-                    a.download = 'watermarked_' + (i + 1) + '.jpg';
-                    a.click();
-                }, i * 300);
+                    downloadSingle(result.dataUrl, 'watermarked_' + (i + 1) + '.jpg');
+                }, i * 500);
             });
         }, 300);
     } else {
-        // 无处理结果，下载全部原图
         showToast(`开始下载 ${canonBatchFiles.length} 张原图...`);
         setTimeout(() => {
             canonBatchFiles.forEach((file, i) => {
                 setTimeout(() => {
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(file);
-                    a.download = file.name;
-                    a.click();
-                }, i * 300);
+                    const reader = new FileReader();
+                    reader.onload = function(e) { downloadSingle(e.target.result, file.name); };
+                    reader.readAsDataURL(file);
+                }, i * 500);
             });
         }, 300);
     }
@@ -3826,11 +3805,7 @@ function bindMattingEvents() {
 
     document.getElementById('mtDownBtn').addEventListener('click', () => {
         if (!resultImg) { showToast('请先抠图'); return; }
-        const a = document.createElement('a');
-        a.href = resultImg;
-        a.download = 'matting_' + Date.now() + '.png';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(resultImg, 'matting_' + Date.now() + '.png');
     });
 }
 
@@ -4713,15 +4688,9 @@ function downloadAllProcessed() {
             try {
                 const f = files[i];
                 await new Promise((resolve, reject) => {
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         try {
-                            const a = document.createElement('a');
-                            a.href = f.dataUrl;
-                            a.download = f.name;
-                            a.target = '_blank';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
+                            await downloadSingle(f.dataUrl, f.name);
                             success++;
                             resolve();
                         } catch (e) {
@@ -4729,7 +4698,7 @@ function downloadAllProcessed() {
                             failed++;
                             reject(e);
                         }
-                    }, i * 300);
+                    }, i * 500);
                 });
             } catch (e) {
                 console.error(`处理第 ${i+1} 张时出错:`, e);
@@ -4822,10 +4791,7 @@ function bindQRGenEvents() {
                 .then(resp => resp.blob())
                 .then(blob => {
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'qrcode.png';
-                    a.click();
+                    downloadSingle(url, 'qrcode.png');
                     URL.revokeObjectURL(url);
                     showToast('下载成功！');
                 })
@@ -5327,11 +5293,7 @@ function bindImgMarkEvents() {
     
     document.getElementById('downloadBtn').addEventListener('click', () => {
         if (!img) { showToast('请先上传图片'); return; }
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'marked_image.png';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(canvas.toDataURL('image/png'), 'marked_image.png');
     });
 }
 
@@ -5399,11 +5361,7 @@ function bindImgInvertEvents() {
     
     document.getElementById('downloadBtn').addEventListener('click', () => {
         if (!img) { showToast('请先上传图片'); return; }
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'inverted_image.png';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(canvas.toDataURL('image/png'), 'inverted_image.png');
     });
 }
 
@@ -5496,11 +5454,7 @@ function bindImgMonochromeEvents() {
     
     document.getElementById('downloadBtn').addEventListener('click', () => {
         if (!img) { showToast('请先上传图片'); return; }
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'monochrome_image.png';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(canvas.toDataURL('image/png'), 'monochrome_image.png');
     });
 }
 
@@ -5589,11 +5543,7 @@ function bindImgMosaicEvents() {
     
     document.getElementById('downloadBtn').addEventListener('click', () => {
         if (!img) { showToast('请先上传图片'); return; }
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'mosaic_image.png';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(canvas.toDataURL('image/png'), 'mosaic_image.png');
     });
 }
 
@@ -5691,11 +5641,7 @@ function bindImgOilpaintEvents() {
     
     document.getElementById('downloadBtn').addEventListener('click', () => {
         if (!img) { showToast('请先上传图片'); return; }
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'oilpaint_image.png';
-        a.click();
-        showToast('下载成功！');
+        downloadSingle(canvas.toDataURL('image/png'), 'oilpaint_image.png');
     });
 }
 
@@ -5763,10 +5709,7 @@ function bindImgScaleEvents() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, newWidth, newHeight);
         
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = `scaled_${newWidth}x${newHeight}.png`;
-        a.click();
+        downloadSingle(canvas.toDataURL('image/png'), `scaled_${newWidth}x${newHeight}.png`);
         showToast('缩放完成，已下载！');
     });
 }
@@ -6254,11 +6197,7 @@ async function setupDownloadFolder() {
 
 async function downloadToFileFolder(dataUrl, filename, folder) {
     if (!folder) {
-        // 直接下载到默认下载文件夹
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = filename;
-        a.click();
+        downloadSingle(dataUrl, filename);
         return;
     }
     
@@ -6699,7 +6638,7 @@ function bindImgInvertEvents() {
         };img.src=URL.createObjectURL(files[0]);
     });
     document.getElementById('ivDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='反转色.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'反转色.png');}
     });
 }
 
@@ -6731,7 +6670,7 @@ function bindImgMonochromeEvents() {
         };img.src=URL.createObjectURL(files[0]);
     });
     document.getElementById('mcDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='灰度图.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'灰度图.png');}
     });
 }
 
@@ -6784,7 +6723,7 @@ function bindImgMosaicEvents() {
         showToast('马赛克处理完成！');
     }
     document.getElementById('msDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='马赛克.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'马赛克.png');}
     });
 }
 
@@ -6815,7 +6754,7 @@ function bindImgOilpaintEvents() {
         };img.src=URL.createObjectURL(files[0]);
     });
     document.getElementById('opDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='油画效果.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'油画效果.png');}
     });
 }
 function getImgMagnifierView() { return `<div style="padding:20px;"><div class="upload-area" id="mgUpload"><div class="upload-icon">🔍</div><div class="upload-text">上传图片使用放大镜</div><input type="file" id="mgFileInput" accept="image/*" style="display:none;"></div><div id="mgPreview" style="margin-top:15px;position:relative;display:inline-block;"><img id="mgImg" style="max-width:100%;border-radius:8px;"><div id="mgLoupe" style="position:absolute;width:100px;height:100px;border:3px solid var(--primary);border-radius:50%;background-repeat:no-repeat;pointer-events:none;display:none;"></div></div></div>`; }
@@ -6843,7 +6782,7 @@ function bindImgTraceEvents() {
         };img.src=URL.createObjectURL(files[0]);
     });
     document.getElementById('trDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='描边图.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'描边图.png');}
     });
 }
 function getImgScaleView() {
@@ -6878,7 +6817,7 @@ function bindImgScaleEvents() {
     }
     document.getElementById('scScale').addEventListener('change',()=>{if(currentImg)applyScale();});
     document.getElementById('scDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='缩放图.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'缩放图.png');}
     });
 }
 function getImgResizeView() {
@@ -6920,7 +6859,7 @@ function bindImgResizeEvents() {
     document.getElementById('rsW').addEventListener('change',()=>{if(currentImg)applyResize();});
     document.getElementById('rsH').addEventListener('change',()=>{if(currentImg)applyResize();});
     document.getElementById('rsDownloadBtn').addEventListener('click',()=>{
-        if(resultDataUrl){const a=document.createElement('a');a.href=resultDataUrl;a.download='调整尺寸.png';a.click();showToast('下载成功！');}
+        if(resultDataUrl){downloadSingle(resultDataUrl,'调整尺寸.png');}
     });
 }
 function getImgViewerView() { return `<div style="padding:20px;"><div class="upload-area" id="vwUpload"><div class="upload-icon">🖼️</div><div class="upload-text">上传图片查看器</div><input type="file" id="vwFileInput" accept="image/*" style="display:none;"></div><div id="vwPreview" style="margin-top:15px;text-align:center;"></div></div>`; }
