@@ -4292,75 +4292,97 @@ function roundedRect(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
-// 全局下载辅助函数 - 使用 Capacitor 原生插件保存到相册
 // ========================================
-// 全局下载辅助函数 - 使用 Capacitor Media 插件保存到相册
+// 全局下载辅助函数 - 完整修复版
 // ========================================
 async function downloadSingle(dataUrl, filename) {
+    const fileName = filename || 'image_' + Date.now() + '.png';
+    let lastError = null;
+    
+    // 方案 1: 使用 Capacitor Media 插件（最佳体验，保存到相册）
     try {
-        const fileName = filename || 'image_' + Date.now() + '.png';
-        
-        // 优先使用 Capacitor Media 插件保存到相册（Android/iOS 原生体验）
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Media) {
-            try {
-                const { Media } = window.Capacitor.Plugins;
-                // Media.savePhoto 支持 base64 图片直接保存
-                await Media.savePhoto({
-                    path: dataUrl, // 可以是 base64 dataURL
-                    fileName: fileName.replace(/\.[^/.]+$/, '') // 去掉扩展名，插件会自动添加
-                });
-                showToast('✅ 已保存到相册！');
-                return;
-            } catch (mediaError) {
-                console.error('[DEBUG] Media plugin error:', mediaError);
-                // Media 插件失败，降级到 Filesystem
-            }
+        if (window.Capacitor?.Plugins?.Media) {
+            const { Media } = window.Capacitor.Plugins;
+            await Media.savePhoto({
+                path: dataUrl,
+                fileName: fileName.replace(/\.[^/.]+$/, '')
+            });
+            showToast('✅ 已保存到相册！');
+            return { success: true, method: 'Media' };
         }
-        
-        // 降级方案：使用 Filesystem 保存到应用目录，然后分享
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            try {
-                const { Filesystem, Directory, Encoding } = window.Capacitor.Plugins;
-                // 提取纯 base64 数据（去掉 data:image/png;base64, 前缀）
-                let base64Data = dataUrl;
-                if (dataUrl.includes('base64,')) {
-                    base64Data = dataUrl.split('base64,')[1];
-                }
-                // 保存到应用的 Documents 目录（Android 11+ 兼容）
-                const result = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64Data,
-                    directory: Directory.Documents,
-                    encoding: Encoding.UTF8
-                });
-                console.log('[DEBUG] File saved to Documents:', result.uri);
-                // 尝试使用 Share 插件分享文件
-                if (window.Capacitor.Plugins.Share) {
-                    const { Share } = window.Capacitor.Plugins;
-                    await Share.share({
-                        title: fileName,
-                        text: '保存图片',
-                        url: result.uri,
-                        dialogTitle: '保存图片到...'
-                    });
-                    showToast('✅ 请从分享菜单选择保存位置');
-                } else {
-                    showToast('✅ 文件已保存到应用文档目录');
-                }
-                return;
-            } catch (fsError) {
-                console.error('[DEBUG] Filesystem error:', fsError);
-            }
-        }
-        
-        // 最终降级：使用浏览器原生下载
-        fallbackDownload(dataUrl, fileName);
-    } catch (e) {
-        console.error('下载失败:', e);
-        showToast('❌ 保存失败，请尝试截图保存');
-        // 最后一次尝试浏览器下载
-        fallbackDownload(dataUrl, filename);
+    } catch (error) {
+        console.log('[DEBUG] Media plugin failed:', error.message);
+        lastError = error;
     }
+    
+    // 方案 2: 使用 Filesystem 保存到应用目录
+    try {
+        if (window.Capacitor?.Plugins?.Filesystem) {
+            const { Filesystem, Directory, Encoding } = window.Capacitor.Plugins;
+            // 提取纯 base64
+            let base64Data = dataUrl;
+            if (dataUrl.includes('base64,')) {
+                base64Data = dataUrl.split('base64,')[1];
+            }
+            // 尝试保存到不同目录
+            const dirs = [Directory.Documents, Directory.Data, Directory.Cache];
+            for (const dir of dirs) {
+                try {
+                    const result = await Filesystem.writeFile({
+                        path: fileName,
+                        data: base64Data,
+                        directory: dir,
+                        encoding: Encoding.UTF8,
+                        recursive: true
+                    });
+                    console.log('[DEBUG] Saved to:', dir, result.uri);
+                    // 尝试分享
+                    if (window.Capacitor?.Plugins?.Share) {
+                        await window.Capacitor.Plugins.Share.share({
+                            title: fileName,
+                            url: result.uri
+                        });
+                    }
+                    showToast('✅ 已保存，请从通知栏查看');
+                    return { success: true, method: 'Filesystem+' + dir };
+                } catch (e) {
+                    console.log('[DEBUG] Dir', dir, 'failed:', e.message);
+                }
+            }
+        }
+    } catch (error) {
+        console.log('[DEBUG] Filesystem failed:', error.message);
+        lastError = error;
+    }
+    
+    // 方案 3: 使用 navigator.share (Web Share API)
+    try {
+        if (navigator.share && navigator.canShare) {
+            const blob = await (await fetch(dataUrl)).blob();
+            const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: fileName });
+                showToast('✅ 已分享/保存');
+                return { success: true, method: 'WebShare' };
+            }
+        }
+    } catch (error) {
+        console.log('[DEBUG] WebShare failed:', error.message);
+        lastError = error;
+    }
+    
+    // 方案 4: 降级使用 a.click() 下载
+    try {
+        fallbackDownload(dataUrl, fileName);
+        showToast('📥 浏览器下载已开始');
+        return { success: true, method: 'Fallback' };
+    } catch (error) {
+        console.error('[DEBUG] Fallback failed:', error.message);
+        lastError = error;
+    }
+    
+    // 全部失败
+    throw new Error(lastError?.message || '下载失败');
 }
 
 // 浏览器原生下载降级方案
@@ -4386,31 +4408,36 @@ function fallbackDownload(dataUrl, filename) {
     }
 }
 
-// 批量下载函数（修复版）
+// 批量下载函数（完整错误处理版）
 async function downloadAllToFolder(files) {
     if (!files || files.length === 0) {
-        showToast('没有可下载的文件');
+        showToast('❌ 没有可下载的文件');
         return;
     }
-    showToast(`开始保存 ${files.length} 张图片...`);
+    showToast(`开始保存 ${files.length} 个文件...`);
     let successCount = 0;
     let failCount = 0;
+    let errorMsg = '';
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
         try {
             await downloadSingle(file.dataUrl, file.name);
             successCount++;
-            // 批量下载间隔，避免阻塞
-            await new Promise(resolve => setTimeout(resolve, 300));
         } catch (e) {
-            console.error(`下载第 ${i+1} 张失败:`, e);
+            console.error(`下载第 ${i+1} 个文件失败:`, e);
             failCount++;
+            if (!errorMsg) errorMsg = e.message;
         }
+        // 批量下载间隔，避免阻塞和权限请求冲突
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
+    // 显示最终结果
     if (failCount === 0) {
-        showToast(`✅ 全部 ${successCount} 张图片保存成功！`);
+        showToast(`✅ 全部 ${successCount} 个文件保存成功！`);
+    } else if (successCount === 0) {
+        showToast(`❌ 全部失败: ${errorMsg || '请检查权限'}`);
     } else {
-        showToast(`⚠️ 成功 ${successCount} 张，失败 ${failCount} 张`);
+        showToast(`⚠️ 成功 ${successCount}，失败 ${failCount}`);
     }
 }
 
@@ -4486,16 +4513,48 @@ function bindBatchImgEvents() {
 }
 
 function downloadAllProcessed() {
-    if (!window._processedFiles || window._processedFiles.length === 0) return;
-    window._processedFiles.forEach((f, i) => {
-        setTimeout(() => {
-            const a = document.createElement('a');
-            a.href = f.dataUrl;
-            a.download = f.name;
-            a.click();
-        }, i * 300);
-    });
-    showToast('开始下载 ' + window._processedFiles.length + ' 张图片');
+    if (!window._processedFiles || window._processedFiles.length === 0) {
+        showToast('❌ 没有可下载的文件');
+        return;
+    }
+    const files = window._processedFiles;
+    showToast(`开始下载 ${files.length} 张图片...`);
+    // 使用异步循环避免阻塞
+    (async () => {
+        let success = 0;
+        let failed = 0;
+        for (let i = 0; i < files.length; i++) {
+            try {
+                const f = files[i];
+                await new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        try {
+                            const a = document.createElement('a');
+                            a.href = f.dataUrl;
+                            a.download = f.name;
+                            a.target = '_blank';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            success++;
+                            resolve();
+                        } catch (e) {
+                            console.error(`下载第 ${i+1} 张失败:`, e);
+                            failed++;
+                            reject(e);
+                        }
+                    }, i * 300);
+                });
+            } catch (e) {
+                console.error(`处理第 ${i+1} 张时出错:`, e);
+            }
+        }
+        if (failed === 0) {
+            showToast(`✅ 全部 ${success} 张图片已开始下载`);
+        } else {
+            showToast(`⚠️ 成功 ${success} 张，失败 ${failed} 张`);
+        }
+    })();
 }
 
 function copyPalette() {
