@@ -2,18 +2,17 @@
    工具详情页 - 具体工具样式
    ======================================== */
 
-/* 上传区域 */
+/* 上传区域 - 硬编码颜色确保Android WebView兼容 */
 .upload-area {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
+    border: 2px dashed #6366f1;
+    border-radius: 12px;
     padding: 40px;
     text-align: center;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.3s ease;
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
-    /* 移动端优化 */
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     min-height: 120px;
@@ -23,16 +22,19 @@
     justify-content: center;
     user-select: none;
     -webkit-user-select: none;
+    /* 硬编码背景色，确保可见 */
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
 }
 
 .upload-area:hover {
-    border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.05);
+    border-color: #6366f1;
+    background-color: rgba(99, 102, 241, 0.1) !important;
 }
 
 .upload-area.dragover {
-    border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.1);
+    border-color: #6366f1;
+    background-color: rgba(99, 102, 241, 0.15) !important;
 }
 
 .upload-icon {
@@ -41,12 +43,12 @@
 }
 
 .upload-text {
-    color: var(--text-secondary);
+    color: #94a3b8;
     margin-bottom: 10px;
 }
 
 .upload-hint {
-    color: var(--text-muted);
+    color: #64748b;
     font-size: 12px;
 }
 
