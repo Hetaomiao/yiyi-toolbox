@@ -293,20 +293,9 @@ function showSearchResults(query) {
 
 // 显示工具
 function showTool(toolId) {
-    // 临时显示调试信息
-    const debugDiv = document.getElementById('debugInfo');
-    if (debugDiv) debugDiv.remove();
-    const body = document.body;
-    const debugEl = document.createElement('div');
-    debugEl.id = 'debugInfo';
-    debugEl.style = 'position:fixed;top:60px;left:0;right:0;background:yellow;color:#000;z-index:9999;padding:10px;font-size:12px;max-height:200px;overflow:auto;';
-    debugEl.innerHTML = `<b>调试信息:</b><br>toolId: ${toolId}<br>`;
-    body.appendChild(debugEl);
-
     const tool = ToolUtils.getToolById(toolId);
-    debugEl.innerHTML += `tool found: ${!!tool}<br>`;
     if (!tool) {
-        debugEl.innerHTML += `<span style="color:red">❌ 工具未找到: ${toolId}</span>`;
+        console.error('工具未找到:', toolId);
         return;
     }
 
@@ -322,19 +311,13 @@ function showTool(toolId) {
     elements.toolDetail.style.pointerEvents = 'auto';
 
     elements.toolTitle.textContent = tool.name;
-    debugEl.innerHTML += `title set: ${tool.name}<br>`;
 
     loadToolContent(toolId);
-    debugEl.innerHTML += `loadToolContent 完成<br>`;
 }
 
 // 加载工具内容
 function loadToolContent(toolId) {
-    const debugDiv = document.getElementById('debugInfo');
-    debugDiv.innerHTML += `<br>--- loadToolContent ---<br>`;
-
     const toolContent = document.getElementById('toolContent');
-    debugDiv.innerHTML += `toolContent存在: ${!!toolContent}<br>`;
     if (!toolContent) return;
 
     // 基础模板
@@ -344,7 +327,6 @@ function loadToolContent(toolId) {
     switch(toolId) {
         case 'img-compress':
             html += getImageCompressView();
-            debugDiv.innerHTML += `加载: img-compress<br>`;
             break;
         case 'img-format':
             html += getImageFormatView();
@@ -579,17 +561,14 @@ function loadToolContent(toolId) {
     
     try {
         toolContent.innerHTML = html;
-        debugDiv.innerHTML += `HTML已设置,长度:${html.length}<br>`;
-        debugDiv.innerHTML += `innerHTML预览:${toolContent.innerHTML.substring(0, 50)}...<br>`;
     } catch(e) {
-        debugDiv.innerHTML += `<span style="color:red">❌ HTML设置失败: ${e.message}</span><br>`;
+        console.error('HTML设置失败:', e);
     }
 
     try {
         bindToolEvents(toolId);
-        debugDiv.innerHTML += `bindToolEvents 完成<br>`;
     } catch(e) {
-        debugDiv.innerHTML += `<span style="color:red">❌ bindToolEvents失败: ${e.message}</span><br>`;
+        console.error('bindToolEvents失败:', e);
     }
 }
 
