@@ -1,9 +1,9 @@
-const CACHE_NAME = 'designer-tools-v2';
+const CACHE_NAME = 'designer-tools-v9';
 const urlsToCache = [
   '/',
   '/index.html',
   '/css/style.css',
-  '/js/app.js?v=20240418'
+  '/js/app.js?v=2024041917'
 ];
 
 self.addEventListener('install', event => {
