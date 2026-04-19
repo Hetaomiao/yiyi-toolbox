@@ -569,6 +569,11 @@ function loadToolContent(toolId) {
         toolContent.style.opacity = '1';
         toolContent.style.display = 'block';
         toolContent.offsetHeight; // 强制重排
+        
+        // 调试：用红色边框确认区域存在
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            toolContent.style.outline = '3px dashed red';
+        }
     } catch(e) {
         console.error('HTML设置失败:', e);
     }
@@ -793,10 +798,11 @@ function setupImageUpload(areaId, inputId, callback) {
 
 function getImageCompressView() {
     return `
-        <div class="upload-area" id="icUpload">
-            <div class="upload-icon">📤</div>
-            <div class="upload-text">点击或拖拽上传图片（支持批量）</div>
-            <div class="upload-hint">支持 PNG, JPG, WebP, GIF, BMP</div>
+        <div class="upload-area" id="icUpload" style="background:#2a3f5f;color:#ffffff;">
+            <div class="upload-icon" style="color:#ff0000;font-size:48px;margin-bottom:15px;">📤</div>
+            <div class="upload-text" style="color:#00ff00;">点击或拖拽上传图片（支持批量）</div>
+            <div class="upload-hint" style="color:#ffff00;">支持 PNG, JPG, WebP, GIF, BMP</div>
+            <p style="color:#ff00ff;font-size:20px;margin-top:10px;">【测试】如果能看到彩色文字说明CSS变量有问题！</p>
             <input type="file" class="upload-input" id="icFile" accept="image/*" multiple>
         </div>
         <div id="batchPreview" style="display:none;margin:10px 0;padding:10px;background:var(--bg-dark);border-radius:8px;">
