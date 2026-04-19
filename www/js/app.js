@@ -267,38 +267,26 @@ function init() {
 // 新增：硬件返回键处理（Android 专用）
 // ========================================
 function setupHardwareBackButton() {
-    // 检查是否在 Capacitor 原生环境
+    // Android 返回键处理（增强版）
     if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
         const { App } = Capacitor.Plugins;
         if (App && App.addListener) {
-            App.addListener('backButton', ({ canGoBack }) => {
-                console.log('[DEBUG] Hardware back button pressed, canGoBack:', canGoBack);
-                // 优先使用应用内导航逻辑
+            App.addListener('backButton', (data) => {
                 if (AppState.currentTool) {
-                    // 如果在工具详情页，返回工具列表
                     goBack();
-                    return;
-                }
-                if (AppState.currentCategory && AppState.currentCategory !== 'home') {
-                    // 如果在分类页面，返回首页
+                } else if (AppState.currentCategory && AppState.currentCategory !== 'home') {
                     showWelcome();
-                    return;
-                }
-                // 如果在首页，退出应用
-                if (AppState.currentCategory === 'home' || !AppState.currentCategory) {
-                    App.exitApp();
-                    return;
-                }
-                // 默认行为：让 WebView 处理
-                if (canGoBack) {
-                    window.history.back();
                 } else {
-                    App.exitApp();
+                    try { App.exitApp(); } catch(e) { navigator.app?.exitApp?.(); }
                 }
             });
-            console.log('[DEBUG] Hardware back button listener registered');
         }
     }
+    // Web 端返回键处理（History API fallback）
+    window.addEventListener('popstate', () => {
+        if (AppState.currentTool) goBack();
+        else if (AppState.currentCategory && AppState.currentCategory !== 'home') showWelcome();
+    });
 }
 
 // 显示分类
@@ -4507,23 +4495,39 @@ async function saveSingleImage(dataUrl, fileName) {
         console.log('[DEBUG] WebShare 失败:', e1.message);
     }
 
-    // 方案2: Media.savePhoto（需要 Capacitor Media 插件）
+    // 方案2: Capacitor Filesystem 写临时文件（解决 dataUrl 问题）
     try {
-        const media = window.Capacitor?.Plugins?.Media;
-        if (media) {
-            const albumPath = await ensureAlbum();
-            if (albumPath) {
-                const result = await media.savePhoto({
-                    path: dataUrl,
+        const fs = window.Capacitor?.Plugins?.Filesystem;
+        const dir = window.Capacitor?.Plugins?.Directory;
+        if (fs && dir) {
+            // 将 dataUrl 转为 Uint8Array
+            const arr = dataUrl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+            // 写到缓存目录
+            const tmpPath = 'tmp_' + Date.now() + '.png';
+            await fs.writeFile({ path: tmpPath, data: u8arr, directory: dir.Cache, recursive: true });
+            const fullPath = await fs.getUri({ path: tmpPath, directory: dir.Cache });
+            // 用 Media 保存到相册
+            const media = window.Capacitor?.Plugins?.Media;
+            if (media) {
+                const albumPath = await ensureAlbum();
+                const saveResult = await media.savePhoto({
+                    path: fullPath.uri,
                     albumIdentifier: albumPath,
                     fileName: fileName.replace(/\.[^.]+$/, '')
                 });
-                console.log('[DEBUG] savePhoto 成功:', result.filePath);
-                return { success: true, uri: result.filePath };
+                console.log('[DEBUG] Filesystem+Media 成功:', saveResult.filePath);
+                // 清理临时文件
+                try { await fs.deleteFile({ path: tmpPath, directory: dir.Cache }); } catch (_) {}
+                return { success: true, method: 'Media' };
             }
         }
     } catch (e2) {
-        console.log('[DEBUG] savePhoto 失败:', e2.message);
+        console.log('[DEBUG] Filesystem+Media 失败:', e2.message);
     }
 
     // 方案3: Filesystem + scanFile（最后兜底）
