@@ -93,9 +93,11 @@ function setupBottomNav() {
     }
     
     const navItems = navContainer.querySelectorAll('.nav-item');
+    console.log('[DEBUG] navItems found:', navItems.length);
     
     function handleNavClick(navItem) {
         const category = navItem.dataset.category;
+        console.log('[DEBUG] handleNavClick, category:', category);
         
         // 更新激活状态
         navItems.forEach(n => n.classList.remove('active'));
@@ -120,26 +122,19 @@ function setupBottomNav() {
         window.scrollTo(0, 0);
     }
     
-    // 使用事件委托，在容器层面处理点击
-    navContainer.addEventListener('click', (e) => {
-        const navItem = e.target.closest('.nav-item');
-        if (navItem) {
+    // 直接在每个 nav-item 上绑定事件（不移植依赖 closest）
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            handleNavClick(navItem);
-        }
+            handleNavClick(item);
+        });
+        item.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleNavClick(item);
+        });
     });
-    
-    // 移动端 touch 事件处理（防止 300ms 延迟）
-    navContainer.addEventListener('touchend', (e) => {
-        const navItem = e.target.closest('.nav-item');
-        console.log('[DEBUG] touchend event, navItem:', navItem, 'target:', e.target);
-        if (navItem) {
-            e.preventDefault();
-            e.stopPropagation();
-            handleNavClick(navItem);
-        }
-    }, { passive: false });
 }
 
 // 显示欢迎页
