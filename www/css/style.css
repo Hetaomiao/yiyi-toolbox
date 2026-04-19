@@ -379,8 +379,6 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 30px;
-    visibility: visible;
-    opacity: 1;
 }
 
 /* 通用组件 */

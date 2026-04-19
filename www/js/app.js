@@ -559,37 +559,8 @@ function loadToolContent(toolId) {
             html += getDefaultToolView(toolId);
     }
     
-    // 关闭外层div
-    html += `</div>`;
-    
     try {
-        // 测试：用最明显的方式注入内容
-        toolContent.innerHTML = '<div style="width:100%;min-height:300px;background:red;color:white;font-size:30px;text-align:center;padding:50px 20px;box-sizing:border-box;">🚨 测试：这是工具内容区域<br>如果能看到红色说明CSS有问题！<br><br>工具ID: ' + toolId + '</div>';
-        
-        // 强制触发重绘
-        toolContent.style.visibility = 'visible';
-        toolContent.style.opacity = '1';
-        toolContent.style.display = 'block';
-        toolContent.style.position = 'relative';
-        toolContent.style.zIndex = '999';
-        
-        // 调试日志
-        console.log('[DEBUG] toolContent innerHTML set, offsetHeight:', toolContent.offsetHeight);
-        
-        // 延迟检查 DOM 是否有内容
-        setTimeout(() => {
-            console.log('[DEBUG] toolContent children length:', toolContent.children.length);
-            console.log('[DEBUG] toolContent offsetHeight:', toolContent.offsetHeight);
-            console.log('[DEBUG] toolContent visibility:', window.getComputedStyle(toolContent).visibility);
-            console.log('[DEBUG] toolContent display:', window.getComputedStyle(toolContent).display);
-        }, 100);
-        
-        // 延迟后再设置一次样式，确保生效
-        setTimeout(() => {
-            toolContent.style.visibility = 'visible';
-            toolContent.style.opacity = '1';
-            toolContent.style.display = 'block';
-        }, 200);
+        toolContent.innerHTML = html;
     } catch(e) {
         console.error('HTML设置失败:', e);
     }
@@ -814,11 +785,10 @@ function setupImageUpload(areaId, inputId, callback) {
 
 function getImageCompressView() {
     return `
-        <div class="upload-area" id="icUpload" style="background:#2a3f5f;color:#ffffff;">
-            <div class="upload-icon" style="color:#ff0000;font-size:48px;margin-bottom:15px;">📤</div>
-            <div class="upload-text" style="color:#00ff00;">点击或拖拽上传图片（支持批量）</div>
-            <div class="upload-hint" style="color:#ffff00;">支持 PNG, JPG, WebP, GIF, BMP</div>
-            <p style="color:#ff00ff;font-size:20px;margin-top:10px;">【测试】如果能看到彩色文字说明CSS变量有问题！</p>
+        <div class="upload-area" id="icUpload">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">点击或拖拽上传图片（支持批量）</div>
+            <div class="upload-hint">支持 PNG, JPG, WebP, GIF, BMP</div>
             <input type="file" class="upload-input" id="icFile" accept="image/*" multiple>
         </div>
         <div id="batchPreview" style="display:none;margin:10px 0;padding:10px;background:var(--bg-dark);border-radius:8px;">
@@ -6791,40 +6761,76 @@ function bindProfileEvents() {
         updateProgress.style.display = 'none';
 
         try {
-            // 调用 GitHub API 获取最新 release
-            const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/releases/latest', {
+            // GitHub Token (内网私有工具，直接使用)
+            const GITHUB_TOKEN = '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';
+            
+            // 调用 GitHub API 获取最新构建
+            const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs', {
                 headers: {
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN
                 }
             });
 
             if (!response.ok) throw new Error('网络请求失败');
 
             const data = await response.json();
-            const latestVersion = data.tag_name; // 例如 v1.0.2-tool-fix
-            const releaseName = data.name;       // 例如 工具面板修复版 v1.0.2
-            const downloadUrl = data.assets[0]?.browser_download_url;
+            const latestRun = data.workflow_runs.find(r => r.conclusion === 'success');
 
-            // 解析真实版本号 (从 v1.0.2-tool-fix 提取 1.0.2)
-            const versionMatch = latestVersion.match(/v?(\d+\.\d+\.\d+)/);
-            const realVersion = versionMatch ? versionMatch[1] : latestVersion;
+            if (!latestRun) {
+                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
+                return;
+            }
 
+            // 获取构建时间
+            const buildDate = new Date(latestRun.created_at).toLocaleDateString('zh-CN');
             updateStatusText.innerHTML = `
                 <span style="color:#10b981;">✅ 发现新版本！</span><br>
-                <span style="color:var(--primary);font-weight:bold;">${releaseName}</span><br>
-                <span style="font-size:12px;color:var(--text-muted);">版本号: v${realVersion}</span>
+                <span style="font-size:12px;">构建时间: ${buildDate}</span>
             `;
 
-            if (downloadUrl) {
-                // 直接下载 APK
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = 'yiyi-toolbox.apk';
-                a.click();
-                updateStatusText.innerHTML += `<br><span style="color:#10b981;">已开始下载...</span>`;
+            // 获取下载链接
+            const artifactsResponse = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs/${latestRun.id}/artifacts`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN
+                }
+            });
+
+            if (!artifactsResponse.ok) throw new Error('获取下载链接失败');
+
+            const artifactsData = await artifactsResponse.json();
+            const apkArtifact = artifactsData.artifacts.find(a => a.name === 'apk');
+
+            if (!apkArtifact) {
+                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
+                return;
+            }
+
+            // 下载 APK - GitHub 需要通过浏览器下载
+            const artifactsResponse2 = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/artifacts/${apkArtifact.id}`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN
+                }
+            });
+            
+            const artifactData = await artifactsResponse2.json();
+            
+            updateStatusText.innerHTML = `
+                <span style="color:#10b981;">✅ 发现新版本！</span><br>
+                <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
+                <span style="color:var(--primary);">点击下方按钮下载安装</span>
+            `;
+            
+            // 在 App 中打开 GitHub Actions 页面让用户下载
+            if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+                const { Browser } = Capacitor.Plugins;
+                if (Browser) {
+                    await Browser.open({ url: 'https://github.com/Hetaomiao/yiyi-toolbox/actions' });
+                }
             } else {
-                // fallback: 打开 GitHub 下载页
-                window.open(data.html_url, '_blank');
+                window.open('https://github.com/Hetaomiao/yiyi-toolbox/actions', '_blank');
             }
 
         } catch (error) {
