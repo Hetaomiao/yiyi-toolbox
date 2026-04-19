@@ -86,11 +86,39 @@ function bindEvents() {
     elements.backBtn.addEventListener('click', goBack);
 }
 
-// 返回功能
+// 返回功能（修复版）
 function goBack() {
-    elements.toolDetail.style.display = 'none';
-    elements.toolsSection.style.display = 'block';
-    elements.welcomeSection.style.display = 'none';
+    console.log('[DEBUG] goBack called, currentTool:', AppState.currentTool, 'currentCategory:', AppState.currentCategory);
+    // 清除当前工具状态
+    AppState.currentTool = null;
+    // 获取元素
+    const toolDetail = elements.toolDetail;
+    const toolsSection = elements.toolsSection;
+    const welcomeSection = elements.welcomeSection;
+    // 防御性检查
+    if (!toolDetail || !toolsSection) {
+        console.error('[ERROR] Missing elements in goBack');
+        location.reload();
+        return;
+    }
+    // 强制隐藏工具详情页
+    toolDetail.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;';
+    // 如果有当前分类，显示工具列表
+    if (AppState.currentCategory && AppState.currentCategory !== 'home' && AppState.currentCategory !== 'me') {
+        // 显示工具列表区
+        toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important; position: relative !important;';
+        // 确保欢迎页隐藏
+        if (welcomeSection) {
+            welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        }
+        console.log('[DEBUG] goBack: showed toolsSection for category', AppState.currentCategory);
+    } else {
+        // 没有分类，显示欢迎页
+        showWelcome();
+        console.log('[DEBUG] goBack: showed welcome (no category)');
+    }
+    // 滚动到顶部
+    window.scrollTo(0, 0);
 }
 
 // 底部导航 - 移动端点击修复版
@@ -147,18 +175,47 @@ function setupBottomNav() {
     });
 }
 
-// 显示欢迎页
+// 显示欢迎页（修复版）
 function showWelcome() {
-    AppState.currentCategory = null;
+    console.log('[DEBUG] showWelcome called');
+    AppState.currentCategory = 'home'; // 明确设置为首页
     AppState.currentTool = null;
-    
-    elements.welcomeSection.style.display = 'block';
-    elements.welcomeSection.style.visibility = 'visible';
-    elements.welcomeSection.style.opacity = '1';
-    elements.toolsSection.style.display = 'none';
-    elements.toolsSection.style.visibility = 'hidden';
-    elements.toolDetail.style.display = 'none';
-    elements.toolDetail.style.visibility = 'hidden';
+    const welcomeSection = elements.welcomeSection;
+    const toolsSection = elements.toolsSection;
+    const toolDetail = elements.toolDetail;
+    // 防御性检查
+    if (!welcomeSection) {
+        console.error('[ERROR] welcomeSection not found');
+        return;
+    }
+    // 强制显示欢迎页（使用 !important 覆盖其他样式）
+    welcomeSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important;';
+    // 强制隐藏工具列表
+    if (toolsSection) {
+        toolsSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; min-height: 0 !important;';
+    }
+    // 强制隐藏工具详情
+    if (toolDetail) {
+        toolDetail.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;';
+    }
+    // 更新底部导航状态
+    updateBottomNavActive('home');
+    console.log('[DEBUG] showWelcome completed');
+}
+
+// 辅助函数：更新底部导航激活状态
+function updateBottomNavActive(category) {
+    const bottomNav = document.getElementById('bottomNav');
+    if (!bottomNav) return;
+    const navItems = bottomNav.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        const itemCategory = item.dataset.category;
+        if (itemCategory === category) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
 }
 
 // 侧边栏菜单切换
@@ -201,51 +258,89 @@ function init() {
     const navContainer = document.getElementById('bottomNav');
     console.log('[DEBUG] bottomNav element:', navContainer);
     setupBottomNav();
+    
+    // 🔴 关键修复：添加 Android 硬件返回键监听
+    setupHardwareBackButton();
+}
+
+// ========================================
+// 新增：硬件返回键处理（Android 专用）
+// ========================================
+function setupHardwareBackButton() {
+    // 检查是否在 Capacitor 原生环境
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+        const { App } = Capacitor.Plugins;
+        if (App && App.addListener) {
+            App.addListener('backButton', ({ canGoBack }) => {
+                console.log('[DEBUG] Hardware back button pressed, canGoBack:', canGoBack);
+                // 优先使用应用内导航逻辑
+                if (AppState.currentTool) {
+                    // 如果在工具详情页，返回工具列表
+                    goBack();
+                    return;
+                }
+                if (AppState.currentCategory && AppState.currentCategory !== 'home') {
+                    // 如果在分类页面，返回首页
+                    showWelcome();
+                    return;
+                }
+                // 如果在首页，退出应用
+                if (AppState.currentCategory === 'home' || !AppState.currentCategory) {
+                    App.exitApp();
+                    return;
+                }
+                // 默认行为：让 WebView 处理
+                if (canGoBack) {
+                    window.history.back();
+                } else {
+                    App.exitApp();
+                }
+            });
+            console.log('[DEBUG] Hardware back button listener registered');
+        }
+    }
 }
 
 // 显示分类
 function showCategory(categoryId) {
+    console.log('[DEBUG] showCategory called:', categoryId);
     AppState.currentCategory = categoryId;
     AppState.currentTool = null;
-
-    // 防御性检查：确保元素存在
+    // 防御性检查
     if (!elements.welcomeSection || !elements.toolsSection) {
-        console.error('Missing elements:', { welcomeSection: elements.welcomeSection, toolsSection: elements.toolsSection });
+        console.error('Missing elements:', {
+            welcomeSection: elements.welcomeSection,
+            toolsSection: elements.toolsSection
+        });
         return;
     }
-
     // 如果是"我的"分类，显示个人中心
     if (categoryId === 'me') {
         elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
         elements.toolDetail.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-        elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
+        elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important;';
         elements.sectionTitle.textContent = '👤 我的';
         elements.toolCount.textContent = '';
         elements.toolsGrid.innerHTML = getProfileView();
         bindProfileEvents();
+        updateBottomNavActive('me');
         return;
     }
-
     const category = ToolUtils.getCategoryById(categoryId);
     const tools = ToolUtils.getToolsByCategory(categoryId);
-
     // 如果分类不存在，fallback 到首页
     if (!category) {
         console.warn('Category not found:', categoryId);
         showWelcome();
         return;
     }
-
     // 隐藏欢迎页和工具详情，强制显示工具列表
     elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
     elements.toolDetail.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-    
-    // 强制显示工具列表区，清除所有可能的隐藏样式
+    // 强制显示工具列表区
     elements.toolsSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 500px !important; position: relative !important;';
-
     elements.sectionTitle.textContent = category.name;
     elements.toolCount.textContent = `${tools.length} 个工具`;
-
     elements.toolsGrid.innerHTML = tools.map(tool => `
         <div class="tool-card" data-tool="${tool.id}">
             <div class="tool-icon">${tool.icon}</div>
@@ -253,18 +348,15 @@ function showCategory(categoryId) {
             <div class="tool-desc">${tool.desc}</div>
         </div>
     `).join('');
-
     // 绑定工具卡片点击
     elements.toolsGrid.querySelectorAll('.tool-card').forEach(card => {
         card.addEventListener('click', () => {
             showTool(card.dataset.tool);
         });
     });
-
-    // 更新侧边栏active
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.category === categoryId);
-    });
+    // 更新底部导航状态
+    updateBottomNavActive(categoryId);
+    console.log('[DEBUG] showCategory completed for:', categoryId);
 }
 
 // 显示搜索结果
@@ -303,24 +395,44 @@ function showSearchResults(query) {
     });
 }
 
-// 显示工具
+// 显示工具（修复版）
 function showTool(toolId) {
+    console.log('[DEBUG] showTool called:', toolId);
     const tool = ToolUtils.getToolById(toolId);
     if (!tool) {
         console.error('工具未找到:', toolId);
+        showToast('工具加载失败');
         return;
     }
-
     AppState.currentTool = tool;
-
-    elements.welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-    elements.toolsSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-    elements.toolDetail.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;';
-
-    elements.toolTitle.textContent = tool.name;
-    elements.toolTitle.style.cssText = 'display: block !important;';
-
+    const welcomeSection = elements.welcomeSection;
+    const toolsSection = elements.toolsSection;
+    const toolDetail = elements.toolDetail;
+    const toolTitle = elements.toolTitle;
+    // 防御性检查
+    if (!toolDetail) {
+        console.error('[ERROR] toolDetail element not found');
+        return;
+    }
+    // 强制隐藏欢迎页和工具列表
+    if (welcomeSection) {
+        welcomeSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+    }
+    if (toolsSection) {
+        toolsSection.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+    }
+    // 强制显示工具详情页
+    toolDetail.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; height: auto !important;';
+    // 设置标题
+    if (toolTitle) {
+        toolTitle.textContent = tool.name;
+        toolTitle.style.cssText = 'display: block !important;';
+    }
+    // 加载工具内容
     loadToolContent(toolId);
+    // 滚动到顶部
+    window.scrollTo(0, 0);
+    console.log('[DEBUG] showTool completed for:', toolId);
 }
 
 // 加载工具内容
