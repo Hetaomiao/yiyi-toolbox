@@ -4,7 +4,7 @@
 
 const TOOLS_DATA = {
     // 版本号
-    version: '1.0.2',
+    version: '1.0.6',
 
     // 分类定义
     categories: [
@@ -81,7 +81,7 @@ const TOOLS_DATA = {
         { id: 'ratio-calc', category: 'size', name: '比例计算', icon: '⚖️', desc: '16:9/4:3比例' },
         { id: 'size-ref', category: 'size', name: '设计尺寸参照', icon: '📐', desc: '设备尺寸对照' },
         { id: 'spacing-calc', category: 'size', name: '间距计算', icon: '📐', desc: '8px网格系统' },
-        { id: 'font-preview', category: 'size', name: '字号预览', icon: '🔤', desc: '各设备字号' },
+        { id: 'size-font-preview', category: 'size', name: '字号预览', icon: '🔤', desc: '各设备字号' },
         { id: 'px-convert', category: 'size', name: '单位转换', icon: '🔄', desc: 'px/em/rem/%' },
         { id: 'mm-px', category: 'size', name: 'mm/cm换算', icon: '📏', desc: '毫米像素互换' },
         { id: 'device-ref', category: 'size', name: '设备对照', icon: '📱', desc: 'iPhone全系尺寸' },

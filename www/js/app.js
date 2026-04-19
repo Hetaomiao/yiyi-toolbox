@@ -7114,77 +7114,43 @@ function bindProfileEvents() {
         updateProgress.style.display = 'none';
 
         try {
-            // GitHub Token (内网私有工具，直接使用)
-            const GITHUB_TOKEN = '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';
-            
-            // 调用 GitHub API 获取最新构建
-            const response = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs', {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': 'Bearer ' + GITHUB_TOKEN
-                }
+            // 公开API，不需要token（仓库是公开的）
+            // 调用 GitHub API 获取最新 Release
+            const releaseResponse = await fetch('https://api.github.com/repos/Hetaomiao/yiyi-toolbox/releases/latest', {
+                headers: { 'Accept': 'application/vnd.github.v3+json' }
             });
 
-            if (!response.ok) throw new Error('网络请求失败');
+            if (!releaseResponse.ok) {
+                // API 限流时显示提示
+                if (releaseResponse.status === 403) {
+                    updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 更新检查太频繁，请稍后再试</span>';
+                } else {
+                    updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
+                }
+                return;
+            }
 
-            const data = await response.json();
-            const latestRun = data.workflow_runs.find(r => r.conclusion === 'success');
+            const release = await releaseResponse.json();
 
-            if (!latestRun) {
+            // 查找 APK 资源
+            const apkAsset = release.assets?.find(a => a.name.endsWith('.apk'));
+            if (!release.tag_name || !apkAsset) {
                 updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
                 return;
             }
 
-            // 获取构建时间
-            const buildDate = new Date(latestRun.created_at).toLocaleDateString('zh-CN');
+            const version = release.tag_name;
+            const buildDate = new Date(release.published_at).toLocaleDateString('zh-CN');
+            const downloadUrl = apkAsset.browser_download_url;
+
             updateStatusText.innerHTML = `
-                <span style="color:#10b981;">✅ 发现新版本！</span><br>
+                <span style="color:#10b981;">✅ 发现新版本 ${version}</span><br>
                 <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
                 <span style="color:var(--primary);">点击下方按钮下载安装</span><br><br>
                 <button onclick="openDownloadPage()" style="background:#10b981;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">📥 下载安装</button>
             `;
             window.openDownloadPage = function() {
-                window.open('https://github.com/Hetaomiao/yiyi-toolbox/releases/download/v1.0.2-tool-fix/yiyi-toolbox-debug.apk', '_blank');
-            };
-            return;
-
-            // 获取下载链接
-            const artifactsResponse = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/runs/${latestRun.id}/artifacts`, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': 'Bearer ' + GITHUB_TOKEN
-                }
-            });
-
-            if (!artifactsResponse.ok) throw new Error('获取下载链接失败');
-
-            const artifactsData = await artifactsResponse.json();
-            const apkArtifact = artifactsData.artifacts.find(a => a.name === 'apk');
-
-            if (!apkArtifact) {
-                updateStatusText.innerHTML = '<span style="color:#f59e0b;">⚠️ 暂无可用更新</span>';
-                return;
-            }
-
-            // 下载 APK - GitHub 需要通过浏览器下载
-            const artifactsResponse2 = await fetch(`https://api.github.com/repos/Hetaomiao/yiyi-toolbox/actions/artifacts/${apkArtifact.id}`, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': 'Bearer ' + GITHUB_TOKEN
-                }
-            });
-            
-            const artifactData = await artifactsResponse2.json();
-            
-            updateStatusText.innerHTML = `
-                <span style="color:#10b981;">✅ 发现新版本！</span><br>
-                <span style="font-size:12px;">构建时间: ${buildDate}</span><br><br>
-                <span style="color:var(--primary);">点击下方按钮下载安装</span><br><br>
-                <button onclick="openDownloadPage()" style="background:#10b981;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;">📥 下载安装</button>
-            `;
-            
-            window.openDownloadPage = function() {
-                window.open(artifactData.archive_browser_download_url, '_blank');
+                window.open(downloadUrl, '_blank');
             };
 
         } catch (error) {
