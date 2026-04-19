@@ -267,26 +267,38 @@ function init() {
 // 新增：硬件返回键处理（Android 专用）
 // ========================================
 function setupHardwareBackButton() {
-    // Android 返回键处理（增强版）
+    // 检查是否在 Capacitor 原生环境
     if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
         const { App } = Capacitor.Plugins;
         if (App && App.addListener) {
-            App.addListener('backButton', (data) => {
+            App.addListener('backButton', ({ canGoBack }) => {
+                console.log('[DEBUG] Hardware back button pressed, canGoBack:', canGoBack);
+                // 优先使用应用内导航逻辑
                 if (AppState.currentTool) {
+                    // 如果在工具详情页，返回工具列表
                     goBack();
-                } else if (AppState.currentCategory && AppState.currentCategory !== 'home') {
+                    return;
+                }
+                if (AppState.currentCategory && AppState.currentCategory !== 'home') {
+                    // 如果在分类页面，返回首页
                     showWelcome();
+                    return;
+                }
+                // 如果在首页，退出应用
+                if (AppState.currentCategory === 'home' || !AppState.currentCategory) {
+                    App.exitApp();
+                    return;
+                }
+                // 默认行为：让 WebView 处理
+                if (canGoBack) {
+                    window.history.back();
                 } else {
-                    try { App.exitApp(); } catch(e) { navigator.app?.exitApp?.(); }
+                    App.exitApp();
                 }
             });
+            console.log('[DEBUG] Hardware back button listener registered');
         }
     }
-    // Web 端返回键处理（History API fallback）
-    window.addEventListener('popstate', () => {
-        if (AppState.currentTool) goBack();
-        else if (AppState.currentCategory && AppState.currentCategory !== 'home') showWelcome();
-    });
 }
 
 // 显示分类
@@ -591,6 +603,7 @@ function loadToolContent(toolId) {
         case 'img-oilpaint': html += getImgOilpaintView(); break;
         case 'img-magnifier': html += getImgMagnifierView(); break;
         case 'img-trace': html += getImgTraceView(); break;
+        case 'img-picker': html += getImagePickerView(); break;
         case 'img-scale': html += getImgScaleView(); break;
         case 'img-resize': html += getImgResizeView(); break;
         case 'img-viewer': html += getImgViewerView(); break;
@@ -614,6 +627,7 @@ function loadToolContent(toolId) {
         case 'text-cloud': html += getTextCloudView(); break;
         case 'text-path': html += getTextPathView(); break;
         case 'font-preview': html += getFontPreviewView(); break;
+        case 'size-font-preview': html += getSizeFontPreviewView(); break;
         case 'font-weight': html += getFontWeightView(); break;
         case 'code-beautify': html += getCodeBeautifyView(); break;
         case 'markdown': html += getMarkdownView(); break;
@@ -746,6 +760,7 @@ function bindToolEvents(toolId) {
         case 'img-oilpaint': bindImgOilpaintEvents(); break;
         case 'img-magnifier': bindImgMagnifierEvents(); break;
         case 'img-trace': bindImgTraceEvents(); break;
+        case 'img-picker': bindImagePickerEvents(); break;
         case 'img-scale': bindImgScaleEvents(); break;
         case 'img-resize': bindImgResizeEvents(); break;
         case 'img-viewer': bindImgViewerEvents(); break;
@@ -769,6 +784,7 @@ function bindToolEvents(toolId) {
         case 'text-cloud': bindTextCloudEvents(); break;
         case 'text-path': bindTextPathEvents(); break;
         case 'font-preview': bindFontPreviewEvents(); break;
+        case 'size-font-preview': bindSizeFontPreviewEvents(); break;
         case 'font-weight': bindFontWeightEvents(); break;
         case 'code-beautify': bindCodeBeautifyEvents(); break;
         case 'markdown': bindMarkdownEvents(); break;
@@ -4495,39 +4511,23 @@ async function saveSingleImage(dataUrl, fileName) {
         console.log('[DEBUG] WebShare 失败:', e1.message);
     }
 
-    // 方案2: Capacitor Filesystem 写临时文件（解决 dataUrl 问题）
+    // 方案2: Media.savePhoto（需要 Capacitor Media 插件）
     try {
-        const fs = window.Capacitor?.Plugins?.Filesystem;
-        const dir = window.Capacitor?.Plugins?.Directory;
-        if (fs && dir) {
-            // 将 dataUrl 转为 Uint8Array
-            const arr = dataUrl.split(',');
-            const mime = arr[0].match(/:(.*?);/)[1];
-            const bstr = atob(arr[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
-            // 写到缓存目录
-            const tmpPath = 'tmp_' + Date.now() + '.png';
-            await fs.writeFile({ path: tmpPath, data: u8arr, directory: dir.Cache, recursive: true });
-            const fullPath = await fs.getUri({ path: tmpPath, directory: dir.Cache });
-            // 用 Media 保存到相册
-            const media = window.Capacitor?.Plugins?.Media;
-            if (media) {
-                const albumPath = await ensureAlbum();
-                const saveResult = await media.savePhoto({
-                    path: fullPath.uri,
+        const media = window.Capacitor?.Plugins?.Media;
+        if (media) {
+            const albumPath = await ensureAlbum();
+            if (albumPath) {
+                const result = await media.savePhoto({
+                    path: dataUrl,
                     albumIdentifier: albumPath,
                     fileName: fileName.replace(/\.[^.]+$/, '')
                 });
-                console.log('[DEBUG] Filesystem+Media 成功:', saveResult.filePath);
-                // 清理临时文件
-                try { await fs.deleteFile({ path: tmpPath, directory: dir.Cache }); } catch (_) {}
-                return { success: true, method: 'Media' };
+                console.log('[DEBUG] savePhoto 成功:', result.filePath);
+                return { success: true, uri: result.filePath };
             }
         }
     } catch (e2) {
-        console.log('[DEBUG] Filesystem+Media 失败:', e2.message);
+        console.log('[DEBUG] savePhoto 失败:', e2.message);
     }
 
     // 方案3: Filesystem + scanFile（最后兜底）
@@ -7176,3 +7176,151 @@ function bindProfileEvents() {
 
 // 初始化
 bindEvents();
+
+function getImagePickerView() {
+    return `
+        <div style="padding:20px;">
+            <div class="upload-area" id="pkUpload">
+                <div class="upload-icon">💉</div>
+                <div class="upload-text">上传图片吸取颜色</div>
+                <input type="file" id="pkFileInput" accept="image/*" style="display:none;">
+            </div>
+            <div id="pkCanvasWrap" style="margin-top:15px;text-align:center;position:relative;display:none;">
+                <canvas id="pkCanvas" style="max-width:100%;border-radius:8px;cursor:crosshair;"></canvas>
+            </div>
+            <div id="pkResult" style="margin-top:15px;display:none;">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-card);border-radius:12px;">
+                    <div id="pkColorSwatch" style="width:48px;height:48px;border-radius:8px;border:1px solid var(--border);flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                        <div style="font-size:14px;font-weight:600;" id="pkHexVal">#000000</div>
+                        <div style="font-size:12px;color:var(--text-muted);" id="pkRgbVal">RGB(0, 0, 0)</div>
+                        <div style="font-size:12px;color:var(--text-muted);" id="pkHslVal">HSL(0, 0%, 0%)</div>
+                    </div>
+                    <button class="btn" id="pkCopyBtn" style="padding:8px 12px;font-size:13px;">📋 复制</button>
+                </div>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 点击图片任意位置吸取颜色</p>
+            </div>
+        </div>
+    `;
+}
+
+function bindImagePickerEvents() {
+    let currentFile = null, currentImg = null;
+    const canvas = document.getElementById('pkCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    
+    setupImageUpload('pkUpload', 'pkFileInput', (files) => {
+        if (!files.length) return;
+        currentFile = files[0];
+        currentImg = new Image();
+        currentImg.onload = () => {
+            canvas.width = currentImg.naturalWidth;
+            canvas.height = currentImg.naturalHeight;
+            ctx.drawImage(currentImg, 0, 0);
+            document.getElementById('pkCanvasWrap').style.display = 'block';
+            document.getElementById('pkResult').style.display = 'block';
+            document.getElementById('pkResult').style.display = 'none';
+        };
+        currentImg.src = URL.createObjectURL(currentFile);
+    });
+    
+    const wrap = document.getElementById('pkCanvasWrap');
+    
+    if (wrap && canvas) {
+        wrap.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            const [r, g, b] = pixel;
+            const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('').toUpperCase();
+            const hsl = rgbToHsl(r, g, b);
+            document.getElementById('pkColorSwatch').style.background = hex;
+            document.getElementById('pkHexVal').textContent = hex;
+            document.getElementById('pkRgbVal').textContent = 'RGB(' + r + ', ' + g + ', ' + b + ')';
+            document.getElementById('pkHslVal').textContent = 'HSL(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)';
+            document.getElementById('pkResult').style.display = 'flex';
+        });
+    }
+    
+    document.getElementById('pkCopyBtn')?.addEventListener('click', () => {
+        const hex = document.getElementById('pkHexVal').textContent;
+        navigator.clipboard.writeText(hex).then(() => showToast('已复制 ' + hex));
+    });
+}
+
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if (max === min) { h = s = 0; }
+    else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+            case g: h = ((b - r) / d + 2) / 6; break;
+            case b: h = ((r - g) / d + 4) / 6; break;
+        }
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+
+function getSizeFontPreviewView() {
+    return `
+        <div style="padding:20px;">
+            <div class="form-group">
+                <label>输入文字</label>
+                <input type="text" id="sfpText" class="input" value="设计师工具箱" style="width:100%;">
+            </div>
+            <div class="form-group" style="margin-top:15px;">
+                <label>字号 <span id="sfpSizeVal">16</span>px</label>
+                <input type="range" id="sfpSize" min="8" max="72" value="16" style="width:100%;">
+            </div>
+            <div id="sfpPreview" style="margin-top:20px;padding:20px;background:var(--bg-card);border-radius:12px;text-align:center;">
+                <div id="sfpDisplay" style="word-break:break-all;">设计师工具箱</div>
+            </div>
+            <div style="margin-top:20px;">
+                <h4 style="font-size:14px;color:var(--text-secondary);margin:0 0 10px 0;">📱 设备参照</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;font-size:12px;"><b>iPhone 14</b><br><span id="sfp14">16px</span></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;font-size:12px;"><b>iPhone 14 Pro Max</b><br><span id="sfp14pm">16px</span></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;font-size:12px;"><b>iPad</b><br><span id="sfpipad">16px</span></div>
+                    <div style="padding:10px;background:var(--bg-card);border-radius:8px;font-size:12px;"><b>MacBook</b><br><span id="sfpmac">16px</span></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function bindSizeFontPreviewEvents() {
+    const display = document.getElementById('sfpDisplay');
+    const sizeInput = document.getElementById('sfpSize');
+    const sizeVal = document.getElementById('sfpSizeVal');
+    const textInput = document.getElementById('sfpText');
+    
+    function updatePreview() {
+        const size = sizeInput.value;
+        sizeVal.textContent = size;
+        if (display) {
+            display.style.fontSize = size + 'px';
+            display.textContent = textInput.value || '设计师工具箱';
+        }
+        const dprs = { sfp14: 3, sfp14pm: 3, sfpipad: 2, sfpmac: 2 };
+        Object.keys(dprs).forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                var logical = Math.round(size / dprs[id] * 10) / 10;
+                el.textContent = size + 'px (@' + dprs[id] + 'x = ' + logical + 'pt)';
+            }
+        });
+    }
+    
+    sizeInput && sizeInput.addEventListener('input', updatePreview);
+    textInput && textInput.addEventListener('input', updatePreview);
+    updatePreview();
+}
+
