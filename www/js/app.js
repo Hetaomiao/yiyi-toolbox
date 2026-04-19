@@ -322,6 +322,7 @@ function showCategory(categoryId) {
         elements.sectionTitle.textContent = '👤 我的';
         elements.toolCount.textContent = '';
         elements.toolsGrid.innerHTML = getProfileView();
+        elements.toolsGrid.classList.remove("tool-fade-in"); void elements.toolsGrid.offsetWidth; elements.toolsGrid.classList.add("tool-fade-in");
         bindProfileEvents();
         updateBottomNavActive('me');
         return;
@@ -348,6 +349,7 @@ function showCategory(categoryId) {
             <div class="tool-desc">${tool.desc}</div>
         </div>
     `).join('');
+    elements.toolsGrid.classList.remove("tool-fade-in"); void elements.toolsGrid.offsetWidth; elements.toolsGrid.classList.add("tool-fade-in");
     // 绑定工具卡片点击
     elements.toolsGrid.querySelectorAll('.tool-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -377,6 +379,7 @@ function showSearchResults(query) {
                 <div class="empty-state-text">未找到相关工具</div>
             </div>
         `;
+        elements.toolsGrid.classList.remove("tool-fade-in"); void elements.toolsGrid.offsetWidth; elements.toolsGrid.classList.add("tool-fade-in");
         return;
     }
 
@@ -387,7 +390,7 @@ function showSearchResults(query) {
             <div class="tool-desc">${tool.desc}</div>
         </div>
     `).join('');
-
+    elements.toolsGrid.classList.remove("tool-fade-in"); void elements.toolsGrid.offsetWidth; elements.toolsGrid.classList.add("tool-fade-in");
     elements.toolsGrid.querySelectorAll('.tool-card').forEach(card => {
         card.addEventListener('click', () => {
             showTool(card.dataset.tool);
@@ -852,12 +855,12 @@ function setupImageUpload(areaId, inputId, callback) {
     
     // 触摸结束时直接触发（手机浏览器）
     area.addEventListener('touchend', (e) => {
-        e.preventDefault();
         if (e.target.tagName !== 'INPUT') {
+            e.preventDefault();
             touchFired = true;
             input.click();
         }
-    });
+    }, { passive: false });
     
     // 点击只在非touch触发时运行（桌面浏览器）
     area.addEventListener('click', (e) => {
@@ -1476,12 +1479,12 @@ function bindImageCanonWatermarkEvents() {
     
     uploadArea.addEventListener('touchstart', () => { touchFired = false; });
     uploadArea.addEventListener('touchend', (e) => {
-        e.preventDefault();
         if (e.target.tagName !== 'INPUT') {
+            e.preventDefault();
             touchFired = true;
             fileInput.click();
         }
-    });
+    }, { passive: false });
     // click只在非touch触发时运行（桌面浏览器）
     uploadArea.addEventListener('click', (e) => {
         if (touchFired) return;
