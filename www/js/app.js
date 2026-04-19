@@ -13,25 +13,35 @@ const AppState = {
 // 文件夹下载支持
 let downloadFolder = null;
 
-// DOM 元素
-const elements = {
-    searchInput: document.getElementById('searchInput'),
-    navList: document.getElementById('navList'),
-    menuBtn: document.getElementById('menuBtn'),
-    closeBtn: document.getElementById('closeBtn'),
-    sidebar: document.getElementById('sidebar'),
-    welcomeSection: document.getElementById('welcomeSection'),
-    toolsSection: document.getElementById('toolsSection'),
-    toolDetail: document.getElementById('toolDetail'),
-    sectionTitle: document.getElementById('sectionTitle'),
-    toolCount: document.getElementById('toolCount'),
-    toolsGrid: document.getElementById('toolsGrid'),
-    toolTitle: document.getElementById('toolTitle'),
-    toolContent: document.getElementById('toolContent'),
-    backBtn: document.getElementById('backBtn'),
-    bottomNav: document.getElementById('bottomNav'),
-    toast: document.getElementById('toast')
-};
+// DOM 元素 - 延迟初始化确保 DOM 已就绪
+let _elements = null;
+function getElements() {
+    if (!_elements) {
+        _elements = {
+            searchInput: document.getElementById('searchInput'),
+            navList: document.getElementById('navList'),
+            menuBtn: document.getElementById('menuBtn'),
+            closeBtn: document.getElementById('closeBtn'),
+            sidebar: document.getElementById('sidebar'),
+            welcomeSection: document.getElementById('welcomeSection'),
+            toolsSection: document.getElementById('toolsSection'),
+            toolDetail: document.getElementById('toolDetail'),
+            sectionTitle: document.getElementById('sectionTitle'),
+            toolCount: document.getElementById('toolCount'),
+            toolsGrid: document.getElementById('toolsGrid'),
+            toolTitle: document.getElementById('toolTitle'),
+            toolContent: document.getElementById('toolContent'),
+            backBtn: document.getElementById('backBtn'),
+            bottomNav: document.getElementById('bottomNav'),
+            toast: document.getElementById('toast')
+        };
+        console.log('[DEBUG] Elements initialized:', Object.keys(_elements).length);
+    }
+    return _elements;
+}
+const elements = new Proxy({}, {
+    get: (target, prop) => getElements()[prop]
+});
 
 // 渲染导航菜单
 function renderNav() {
